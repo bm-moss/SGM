@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Staff</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openAddModal()" id="add-btn">+ Add Staff</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="stats-grid" id="staff-stats"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>All Staff Members</h3>
+          <div class="search-input-wrap" style="min-width:220px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search" placeholder="Search staff..." oninput="renderTable()" />
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Role</th><th>Department</th>
+                <th>Email</th><th>Phone</th><th>Salary</th><th>Join Date</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Staff Member</h3>
+      <button class="modal-close" onclick="closeModal('staff-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Full Name</label>
+          <input type="text" id="f-name" placeholder="Full name" required />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-email" placeholder="email@school.edu" />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="f-phone" placeholder="555-0000" />
+        </div>
+        <div class="form-group">
+          <label>Role / Position</label>
+          <input type="text" id="f-role" placeholder="e.g. Secretary" />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <select id="f-dept"></select>
+        </div>
+        <div class="form-group">
+          <label>Monthly Salary ($)</label>
+          <input type="number" id="f-salary" placeholder="0" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Join Date</label>
+          <input type="date" id="f-join" />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('staff-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('staff')) window.location.href = 'dashboard.html';
+  buildSidebar('staff');
+  if (!Auth.isAdmin()) document.getElementById('add-btn').classList.add('hidden');
+
+  function getStaff() { return DB.get('staff') || []; }
+
+  // Load departments from DB into modal select
+  function populateDeptSelect(currentVal) {
+    const depts = DB.get('departments') || [];
+    const sel = document.getElementById('f-dept');
+    sel.innerHTML = '';
+    depts.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d.name; o.textContent = d.name;
+      sel.appendChild(o);
+    });
+    if (currentVal) sel.value = currentVal;
+  }
+
+  function renderStats() {
+    const staff = getStaff();
+    const active = staff.filter(s => s.status === 'active').length;
+    const totalSalary = staff.reduce((sum, s) => sum + (parseFloat(s.salary) || 0), 0);
+    const depts = new Set(staff.map(s => s.department)).size;
+
+    document.getElementById('staff-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">👥</div><div class="stat-info"><div class="stat-value">${staff.length}</div><div class="stat-label">Total Staff</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${active}</div><div class="stat-label">Active</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">🏢</div><div class="stat-info"><div class="stat-value">${depts}</div><div class="stat-label">Departments</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">💰</div><div class="stat-info"><div class="stat-value">$${totalSalary.toLocaleString()}</div><div class="stat-label">Monthly Payroll</div></div></div>
+    `;
+  }
+
+  function renderTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const staff = getStaff().filter(s =>
+      !q || s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.department.toLowerCase().includes(q)
+    );
+
+    document.getElementById('staff-table').innerHTML = staff.length ? staff.map((s, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.role}</td>
+        <td><span class="badge badge-info">${s.department}</span></td>
+        <td>${s.email}</td>
+        <td>${s.phone}</td>
+        <td>$${parseFloat(s.salary || 0).toLocaleString()}</td>
+        <td>${formatDate(s.joinDate)}</td>
+        <td><span class="badge badge-${s.status === 'active' ? 'success' : 'secondary'}">${s.status}</span></td>
+        <td>
+          ${Auth.isAdmin() ? `
+            <button class="btn btn-warning btn-sm" onclick="editStaff('${s.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStaff('${s.id}')">🗑️</button>
+          ` : '<span style="color:#5f6368;font-size:13px;">View only</span>'}
+        </td>
+      </tr>
+    `).join('') : '<tr><td colspan="10" style="text-align:center;color:#5f6368;padding:32px;">No staff found.</td></tr>';
+  }
+
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add Staff Member';
+    document.getElementById('edit-id').value = '';
+    ['name','email','phone','role','salary'].forEach(f => document.getElementById('f-' + f).value = '');
+    populateDeptSelect();
+    document.getElementById('f-status').value = 'active';
+    document.getElementById('f-join').value = new Date().toISOString().split('T')[0];
+    openModal('staff-modal');
+  }
+
+  function editStaff(id) {
+    const s = getStaff().find(s => s.id === id);
+    if (!s) return;
+    document.getElementById('modal-title').textContent = 'Edit Staff Member';
+    document.getElementById('edit-id').value = s.id;
+    document.getElementById('f-name').value = s.name;
+    document.getElementById('f-email').value = s.email;
+    document.getElementById('f-phone').value = s.phone;
+    document.getElementById('f-role').value = s.role;
+    populateDeptSelect(s.department);
+    document.getElementById('f-salary').value = s.salary;
+    document.getElementById('f-join').value = s.joinDate;
+    document.getElementById('f-status').value = s.status;
+    openModal('staff-modal');
+  }
+
+  function saveStaff() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('Name is required', 'error'); return; }
+    const staff = getStaff();
+    const editId = document.getElementById('edit-id').value;
+    const record = {
+      name, email: document.getElementById('f-email').value,
+      phone: document.getElementById('f-phone').value,
+      role: document.getElementById('f-role').value,
+      department: document.getElementById('f-dept').value,
+      salary: document.getElementById('f-salary').value,
+      joinDate: document.getElementById('f-join').value,
+      status: document.getElementById('f-status').value
+    };
+    if (editId) {
+      const idx = staff.findIndex(s => s.id === editId);
+      staff[idx] = { ...staff[idx], ...record };
+      toast('Staff updated', 'success');
+    } else {
+      staff.push({ id: 'st_' + Date.now(), ...record });
+      toast('Staff added', 'success');
+    }
+    DB.set('staff', staff);
+    closeModal('staff-modal');
+    renderStats();
+    renderTable();
+  }
+
+  function deleteStaff(id) {
+    confirmDelete('Delete this staff member?', () => {
+      DB.set('staff', getStaff().filter(s => s.id !== id));
+      toast('Staff deleted');
+      renderStats();
+      renderTable();
+    });
+  }
+
+  renderStats();
+  renderTable();
+</script>
+</body>
+</html>

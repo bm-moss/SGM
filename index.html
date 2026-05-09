@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login – School Management System</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-logo">
+      <div class="school-icon"></div>
+      <h1>SGM</h1>
+      <p>School Management System</p>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter your username" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Sign In</button>
+    </form>
+
+    <p style="text-align:center; margin-top:20px; font-size:12px; color:rgba(255,255,255,.35);">
+      Admin: admin / admin123 &nbsp;·&nbsp; Teacher: teacher1 / teacher123<br>
+      Student: alice / alice123 &nbsp;·&nbsp; bob / bob123
+    </p>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Redirect if already logged in
+    const existing = Auth.getSession();
+    if (existing) {
+      window.location.href = existing.role === 'student' ? 'student-result.html' : 'dashboard.html';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const result = Auth.login(username, password);
+      if (result.success) {
+        // Students go to their result page, everyone else to dashboard
+        if (result.user.role === 'student') {
+          window.location.href = 'student-result.html';
+        } else {
+          window.location.href = 'dashboard.html';
+        }
+      } else {
+        const err = document.getElementById('login-error');
+        err.textContent = result.message;
+        err.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

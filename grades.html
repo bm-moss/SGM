@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grades & Rankings – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Grades & Results</div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- ── STEP 1: Class + Semester selector ── -->
+      <div class="card" style="margin-bottom:20px;" id="selector-card">
+        <div class="card-body">
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+
+            <!-- Class -->
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+              <label>Class</label>
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="sel-class" list="class-list" placeholder="Select or type new class…"
+                  oninput="onClassInput()" onchange="onClassChange()" onblur="onClassChange()"
+                  style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;" />
+                <datalist id="class-list"></datalist>
+                <button class="btn btn-primary btn-sm" onclick="addNewClass()" title="Add new class">+ Class</button>
+                <button class="btn btn-ghost btn-sm" onclick="toggleManageClasses()" title="Edit/Delete classes">⚙️</button>
+              </div>
+              <!-- Manage classes panel -->
+              <div id="manage-classes" style="display:none;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px;max-height:180px;overflow-y:auto;">
+                <div id="class-manage-list"></div>
+              </div>
+            </div>
+
+            <!-- Semester -->
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+              <label>Semester</label>
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="sel-term" list="term-list" placeholder="Select or type new semester…"
+                  oninput="onTermInput()" onchange="onTermChange()" onblur="onTermChange()" disabled
+                  style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;" />
+                <datalist id="term-list"></datalist>
+                <button class="btn btn-primary btn-sm" id="add-term-btn" onclick="addNewTerm()" title="Add new semester" disabled>+ Sem</button>
+                <button class="btn btn-ghost btn-sm" id="manage-term-btn" onclick="toggleManageTerms()" title="Edit/Delete semesters" disabled>⚙️</button>
+              </div>
+              <!-- Manage semesters panel -->
+              <div id="manage-terms" style="display:none;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px;max-height:180px;overflow-y:auto;">
+                <div id="term-manage-list"></div>
+              </div>
+            </div>
+
+            <div id="term-lock-msg" style="font-size:12.5px;color:#b45309;background:#fef3c7;padding:8px 12px;border-radius:6px;border:1px solid #fde68a;display:none;align-self:flex-end;">
+              ⚠️ Complete the previous semester before proceeding.
+            </div>
+          </div>
+
+          <!-- Exam Weights (admin/teacher only) -->
+          <div id="weights-panel" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+              <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">⚖️ Exam Weights (must total 100)</span>
+              <span id="weights-total-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f1f5f9;color:var(--text-muted);">Total: 0</span>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
+                <label>Midterm max</label>
+                <input type="number" id="w-midterm" min="0" max="100" value="30" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
+              </div>
+              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
+                <label>Final Exam max</label>
+                <input type="number" id="w-final" min="0" max="100" value="50" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
+              </div>
+              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
+                <label>Assignment max</label>
+                <input type="number" id="w-assign" min="0" max="100" value="20" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveWeights()" style="align-self:flex-end;margin-bottom:1px;">Save Weights</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MAIN CONTENT (hidden until class+term selected) ── -->
+      <div id="main-area" style="display:none;">
+        <div class="tabs">
+          <button class="tab-btn active" data-group="main" data-tab="tab-grades">📊 Grade Records</button>
+          <button class="tab-btn" data-group="main" data-tab="tab-rankings">🏆 Rankings</button>
+          <button class="tab-btn" data-group="main" data-tab="tab-report">📋 Student Report</button>
+        </div>
+
+        <!-- GRADES TAB -->
+        <div class="tab-content active" data-group="main" id="tab-grades">
+          <div class="card">
+            <div class="card-header">
+              <h3 id="grades-heading">Grade Records</h3>
+              <div class="search-input-wrap" style="min-width:200px;">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="g-search" placeholder="Search student..." oninput="renderGrades()" />
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead id="grades-thead"></thead>
+                <tbody id="grades-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RANKINGS TAB -->
+        <div class="tab-content" data-group="main" id="tab-rankings">
+          <div class="card">
+            <div class="card-header">
+              <h3 id="rankings-heading">Rankings</h3>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead id="rankings-thead"></thead>
+                <tbody id="rankings-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- STUDENT REPORT TAB -->
+        <div class="tab-content" data-group="main" id="tab-report">
+          <div class="card">
+            <div class="card-header">
+              <h3>Student Report</h3>
+              <select id="rep-student" onchange="renderReport()" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:13px;min-width:200px;">
+                <option value="">Select Student...</option>
+              </select>
+            </div>
+            <div class="card-body" id="report-body">
+              <div style="text-align:center;color:var(--text-light);padding:40px;">Select a student to view their report.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- placeholder when nothing selected -->
+      <div id="empty-state" style="text-align:center;padding:60px 20px;color:var(--text-light);">
+        <div style="font-size:48px;margin-bottom:12px;">📚</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text-muted);">Select a class and term to get started</div>
+        <div style="font-size:13px;margin-top:6px;">Choose from the dropdowns above</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Grade Modal -->
+<div class="modal-overlay" id="grade-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="grade-modal-title">Add Grade</h3>
+      <button class="modal-close" onclick="closeModal('grade-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="g-edit-id" />
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Student</label>
+          <select id="g-student"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Subject</label>
+          <input type="text" id="g-subject" list="subject-options" placeholder="e.g. Mathematics" />
+          <datalist id="subject-options">
+            <option value="Mathematics"></option><option value="English"></option>
+            <option value="Physics"></option><option value="Chemistry"></option>
+            <option value="Biology"></option><option value="History"></option>
+            <option value="Geography"></option><option value="Computer Science"></option>
+            <option value="Arabic"></option><option value="Islamic Studies"></option>
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label id="lbl-midterm">Midterm <span style="font-weight:400;color:var(--text-light);">out of 30 — optional</span></label>
+          <input type="number" id="g-midterm" min="0" max="30" placeholder="0 – 30" oninput="calcPreview()" />
+        </div>
+        <div class="form-group">
+          <label id="lbl-final">Final Exam <span style="font-weight:400;color:var(--text-light);">out of 50 — optional</span></label>
+          <input type="number" id="g-final" min="0" max="50" placeholder="0 – 50" oninput="calcPreview()" />
+        </div>
+        <div class="form-group">
+          <label id="lbl-assign">Assignment <span style="font-weight:400;color:var(--text-light);">out of 20 — optional</span></label>
+          <input type="number" id="g-assign" min="0" max="20" placeholder="0 – 20" oninput="calcPreview()" />
+        </div>
+        <div class="form-group">
+          <label>Total Score /100</label>
+          <div id="calc-preview" style="padding:9px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;font-weight:700;color:var(--text-muted);">
+            Enter scores above
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('grade-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGrade()">Save Grade</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('grades')) window.location.href = 'dashboard.html';
+  buildSidebar('grades');
+  initTabs();
+
+  const canEdit = Auth.isAdmin() || user.role === 'teacher';
+
+  // ── State ──
+  let activeClass = '';
+  let activeTerm  = '';
+
+  // ── Weights helpers ──
+  function getWeightsKey() { return 'weights_' + activeClass + '_' + activeTerm; }
+
+  function getWeights() {
+    const stored = DB.get(getWeightsKey());
+    return stored || { midterm: 30, final: 50, assignment: 20 };
+  }
+
+  function updateWeightsTotal() {
+    const m = parseInt(document.getElementById('w-midterm').value) || 0;
+    const f = parseInt(document.getElementById('w-final').value)   || 0;
+    const a = parseInt(document.getElementById('w-assign').value)  || 0;
+    const total = m + f + a;
+    const badge = document.getElementById('weights-total-badge');
+    badge.textContent = 'Total: ' + total;
+    badge.style.background = total === 100 ? '#dcfce7' : '#fee2e2';
+    badge.style.color       = total === 100 ? '#15803d' : '#b91c1c';
+  }
+
+  function saveWeights() {
+    const m = parseInt(document.getElementById('w-midterm').value) || 0;
+    const f = parseInt(document.getElementById('w-final').value)   || 0;
+    const a = parseInt(document.getElementById('w-assign').value)  || 0;
+    if (m + f + a !== 100) { toast('Weights must total exactly 100', 'error'); return; }
+    DB.set(getWeightsKey(), { midterm: m, final: f, assignment: a });
+    toast('Exam weights saved', 'success');
+    renderGrades();
+    renderRankings();
+  }
+
+  function loadWeightsPanel() {
+    if (!canEdit) return;
+    document.getElementById('weights-panel').style.display = '';
+    const w = getWeights();
+    document.getElementById('w-midterm').value = w.midterm;
+    document.getElementById('w-final').value   = w.final;
+    document.getElementById('w-assign').value  = w.assignment;
+    updateWeightsTotal();
+  }
+
+  function updateModalLabels() {
+    const w = getWeights();
+    document.getElementById('lbl-midterm').innerHTML = `Midterm <span style="font-weight:400;color:var(--text-light);">out of ${w.midterm} — optional</span>`;
+    document.getElementById('lbl-final').innerHTML   = `Final Exam <span style="font-weight:400;color:var(--text-light);">out of ${w.final} — optional</span>`;
+    document.getElementById('lbl-assign').innerHTML  = `Assignment <span style="font-weight:400;color:var(--text-light);">out of ${w.assignment} — optional</span>`;
+    document.getElementById('g-midterm').max = w.midterm;
+    document.getElementById('g-midterm').placeholder = '0 – ' + w.midterm;
+    document.getElementById('g-final').max   = w.final;
+    document.getElementById('g-final').placeholder   = '0 – ' + w.final;
+    document.getElementById('g-assign').max  = w.assignment;
+    document.getElementById('g-assign').placeholder  = '0 – ' + w.assignment;
+  }
+
+  function getGrades()   { return DB.get('grades')   || []; }
+  function getStudents() { return DB.get('students') || []; }
+
+  // ── Migrate: fix any old records where score was calculated with weighted formula ──
+  (function migrateGrades() {
+    const grades = DB.get('grades') || [];
+    let changed = false;
+    grades.forEach(g => {
+      const correct = Math.round(((parseFloat(g.midterm)||0) + (parseFloat(g.final)||0) + (parseFloat(g.assignment)||0)) * 10) / 10;
+      if (g.score !== correct) { g.score = correct; g.grade = GradeCalc.getGrade(correct); changed = true; }
+    });
+    if (changed) { DB.set('grades', grades); }
+  })();
+
+  // ── All semesters ordered (Semester 1 < Semester 2 < Semester 3)
+  const TERM_ORDER = ['Semester 1','Semester 2','Semester 3'];
+
+  function termIndex(t) {
+    const i = TERM_ORDER.indexOf(t);
+    return i === -1 ? 99 : i;
+  }
+
+  // ── Is a term "complete" for a class?
+  // Complete = every student in the class has at least one grade record for that term
+  function isTermComplete(cls, term) {
+    const students = getStudents().filter(s => s.class === cls);
+    if (!students.length) return false;
+    const grades = getGrades();
+    return students.every(s => grades.some(g => g.studentId === s.id && g.term === term));
+  }
+
+  // ── Populate class datalist ──
+  function populateClassSelector() {
+    const dbClasses = (DB.get('classes') || []).map(c => c.name);
+    const studentClasses = [...new Set(getStudents().map(s => s.class))];
+    const all = [...new Set([...dbClasses, ...studentClasses])].sort();
+    const dl = document.getElementById('class-list');
+    dl.innerHTML = all.map(c => `<option value="${c}">`).join('');
+  }
+
+  function onClassInput() {
+    const val = document.getElementById('sel-class').value.trim();
+    document.getElementById('sel-term').disabled = !val;
+    document.getElementById('add-term-btn').disabled = !val;
+    document.getElementById('manage-term-btn').disabled = !val;
+    if (!val) {
+      activeClass = ''; activeTerm = '';
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('empty-state').style.display = '';
+      document.getElementById('topbar-actions').innerHTML = '';
+      document.getElementById('weights-panel').style.display = 'none';
+    }
+  }
+
+  // ── When class changes ──
+  function onClassChange() {
+    const val = document.getElementById('sel-class').value.trim();
+    if (!val) return;
+    activeClass = val;
+    activeTerm = '';
+    document.getElementById('sel-term').value = '';
+    document.getElementById('sel-term').disabled = false;
+    document.getElementById('add-term-btn').disabled = false;
+    document.getElementById('manage-term-btn').disabled = false;
+    document.getElementById('term-lock-msg').style.display = 'none';
+    document.getElementById('main-area').style.display = 'none';
+    document.getElementById('empty-state').style.display = '';
+    document.getElementById('topbar-actions').innerHTML = '';
+    document.getElementById('weights-panel').style.display = 'none';
+    populateTermSelector();
+  }
+
+  function populateTermSelector() {
+    const existing = [...new Set(getGrades().filter(g => g.class === activeClass).map(g => g.term))];
+    const all = [...new Set([...TERM_ORDER, ...existing])];
+    const dl = document.getElementById('term-list');
+    dl.innerHTML = all.map(t => `<option value="${t}">`).join('');
+  }
+
+  function onTermInput() {
+    const val = document.getElementById('sel-term').value.trim();
+    if (!val) { activeTerm = ''; document.getElementById('main-area').style.display = 'none'; document.getElementById('empty-state').style.display = ''; }
+  }
+
+  function addNewClass() {
+    const name = prompt('Enter new class name (e.g. 10C, 12A):');
+    if (!name || !name.trim()) return;
+    const cls = name.trim();
+    const classes = DB.get('classes') || [];
+    if (!classes.find(c => c.name === cls)) {
+      classes.push({ id: 'cls_' + Date.now(), name: cls, grade: cls.replace(/\D/g,''), section: cls.replace(/\d/g,''), capacity: 30, classTeacher: '', room: '' });
+      DB.set('classes', classes);
+    }
+    populateClassSelector();
+    document.getElementById('sel-class').value = cls;
+    onClassChange();
+    toast('Class "' + cls + '" added', 'success');
+  }
+
+  function addNewTerm() {
+    if (!activeClass) { toast('Select a class first', 'error'); return; }
+    const name = prompt('Enter new semester name (e.g. Semester 4, Q1 2026):');
+    if (!name || !name.trim()) return;
+    populateTermSelector();
+    document.getElementById('sel-term').value = name.trim();
+    onTermChange();
+    toast('Semester "' + name.trim() + '" ready', 'success');
+  }
+
+  // ── Manage Classes ──
+  function toggleManageClasses() {
+    const panel = document.getElementById('manage-classes');
+    const open = panel.style.display === 'none';
+    panel.style.display = open ? '' : 'none';
+    if (open) renderManageClasses();
+  }
+
+  function renderManageClasses() {
+    const dbClasses = DB.get('classes') || [];
+    const studentClasses = [...new Set(getStudents().map(s => s.class))];
+    const all = [...new Set([...dbClasses.map(c => c.name), ...studentClasses])].sort();
+
+    document.getElementById('class-manage-list').innerHTML = all.length
+      ? all.map(cls => `
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span style="flex:1;font-size:13px;font-weight:600;">${cls}</span>
+            <button class="btn btn-warning btn-sm" onclick="editClass('${cls}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteClass('${cls}')">🗑️</button>
+          </div>`).join('')
+      : '<div style="color:var(--text-light);font-size:13px;padding:8px 0;">No classes yet.</div>';
+  }
+
+  function editClass(oldName) {
+    const newName = prompt('Rename class "' + oldName + '" to:', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const n = newName.trim();
+    // Update classes DB
+    const classes = DB.get('classes') || [];
+    const idx = classes.findIndex(c => c.name === oldName);
+    if (idx !== -1) { classes[idx].name = n; DB.set('classes', classes); }
+    // Update all students in this class
+    const students = DB.get('students') || [];
+    students.forEach(s => { if (s.class === oldName) s.class = n; });
+    DB.set('students', students);
+    // Update all grades
+    const grades = DB.get('grades') || [];
+    grades.forEach(g => { if (g.class === oldName) g.class = n; });
+    DB.set('grades', grades);
+    // Update attendance
+    const att = DB.get('attendance') || [];
+    // (attendance uses personId not class directly — no change needed)
+    populateClassSelector();
+    if (activeClass === oldName) {
+      document.getElementById('sel-class').value = n;
+      activeClass = n;
+    }
+    renderManageClasses();
+    toast('Class renamed to "' + n + '"', 'success');
+  }
+
+  function deleteClass(name) {
+    const grades = (DB.get('grades') || []).filter(g => g.class === name);
+    const students = (DB.get('students') || []).filter(s => s.class === name);
+    const msg = `Delete class "${name}"?\n\nThis will also delete:\n• ${grades.length} grade record(s)\n• Students will lose their class assignment\n\nThis cannot be undone.`;
+    if (!confirm(msg)) return;
+    // Remove from classes DB
+    DB.set('classes', (DB.get('classes') || []).filter(c => c.name !== name));
+    // Remove grades for this class
+    DB.set('grades', (DB.get('grades') || []).filter(g => g.class !== name));
+    // Clear class from students
+    const students2 = DB.get('students') || [];
+    students2.forEach(s => { if (s.class === name) s.class = ''; });
+    DB.set('students', students2);
+    if (activeClass === name) {
+      activeClass = '';
+      activeTerm = '';
+      document.getElementById('sel-class').value = '';
+      document.getElementById('sel-term').value = '';
+      document.getElementById('sel-term').disabled = true;
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('empty-state').style.display = '';
+    }
+    populateClassSelector();
+    renderManageClasses();
+    toast('Class "' + name + '" deleted', 'success');
+  }
+
+  // ── Manage Semesters ──
+  function toggleManageTerms() {
+    const panel = document.getElementById('manage-terms');
+    const open = panel.style.display === 'none';
+    panel.style.display = open ? '' : 'none';
+    if (open) renderManageTerms();
+  }
+
+  function renderManageTerms() {
+    if (!activeClass) { document.getElementById('term-manage-list').innerHTML = '<div style="color:var(--text-light);font-size:13px;">Select a class first.</div>'; return; }
+    const terms = [...new Set(getGrades().filter(g => g.class === activeClass).map(g => g.term))].sort();
+    document.getElementById('term-manage-list').innerHTML = terms.length
+      ? terms.map(t => `
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span style="flex:1;font-size:13px;font-weight:600;">${t}</span>
+            <button class="btn btn-warning btn-sm" onclick="editTerm('${t}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTerm('${t}')">🗑️</button>
+          </div>`).join('')
+      : '<div style="color:var(--text-light);font-size:13px;padding:8px 0;">No semesters with grades yet.</div>';
+  }
+
+  function editTerm(oldName) {
+    const newName = prompt('Rename semester "' + oldName + '" to:', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const n = newName.trim();
+    const grades = DB.get('grades') || [];
+    grades.forEach(g => { if (g.class === activeClass && g.term === oldName) g.term = n; });
+    DB.set('grades', grades);
+    if (activeTerm === oldName) {
+      document.getElementById('sel-term').value = n;
+      activeTerm = n;
+    }
+    populateTermSelector();
+    renderManageTerms();
+    renderGrades();
+    renderRankings();
+    toast('Semester renamed to "' + n + '"', 'success');
+  }
+
+  function deleteTerm(name) {
+    const count = getGrades().filter(g => g.class === activeClass && g.term === name).length;
+    if (!confirm(`Delete semester "${name}" from Class ${activeClass}?\n\nThis will delete ${count} grade record(s). Cannot be undone.`)) return;
+    DB.set('grades', getGrades().filter(g => !(g.class === activeClass && g.term === name)));
+    if (activeTerm === name) {
+      activeTerm = '';
+      document.getElementById('sel-term').value = '';
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('empty-state').style.display = '';
+    }
+    populateTermSelector();
+    renderManageTerms();
+    toast('Semester "' + name + '" deleted', 'success');
+  }
+
+  // ── When term changes ──
+  function onTermChange() {
+    activeTerm = document.getElementById('sel-term').value.trim();
+    document.getElementById('term-lock-msg').style.display = 'none';
+
+    if (!activeTerm) {
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('empty-state').style.display = '';
+      document.getElementById('topbar-actions').innerHTML = '';
+      return;
+    }
+
+    // Check: is there a previous semester that isn't complete?
+    const prevTerms = TERM_ORDER.filter(t => termIndex(t) < termIndex(activeTerm));
+    const existingTermsForClass = [...new Set(
+      getGrades().filter(g => g.class === activeClass).map(g => g.term)
+    )];
+    const incompletePrev = prevTerms.find(t =>
+      existingTermsForClass.includes(t) && !isTermComplete(activeClass, t)
+    );
+
+    if (incompletePrev) {
+      document.getElementById('term-lock-msg').style.display = 'flex';
+      document.getElementById('term-lock-msg').textContent =
+        `⚠️ "${incompletePrev}" is not yet complete for Class ${activeClass}. Finish it before entering ${activeTerm}.`;
+      document.getElementById('main-area').style.display = 'none';
+      document.getElementById('empty-state').style.display = '';
+      document.getElementById('topbar-actions').innerHTML = '';
+      return;
+    }
+
+    // All good — show main area
+    document.getElementById('main-area').style.display = '';
+    document.getElementById('empty-state').style.display = 'none';
+
+    // Update headings
+    document.getElementById('grades-heading').textContent =
+      `Grade Records — Class ${activeClass} · ${activeTerm}`;
+    document.getElementById('rankings-heading').textContent =
+      `Rankings — Class ${activeClass} · ${activeTerm}`;
+
+    // Load weights panel
+    loadWeightsPanel();
+    updateModalLabels();
+
+    // Populate student report selector
+    const repSel = document.getElementById('rep-student');
+    repSel.innerHTML = '<option value="">Select Student...</option>';
+    getStudents().filter(s => s.class === activeClass).forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;
+      repSel.appendChild(o);
+    });
+
+    // Populate grade modal student selector
+    const gSel = document.getElementById('g-student');
+    gSel.innerHTML = '';
+    getStudents().filter(s => s.class === activeClass).forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;
+      gSel.appendChild(o);
+    });
+
+    // Show add button if allowed
+    if (canEdit) {
+      document.getElementById('topbar-actions').innerHTML =
+        `<button class="btn btn-primary" onclick="openAddGrade()">+ Add Grade</button>`;
+    }
+
+    renderGrades();
+    renderRankings();
+  }
+
+  // ── Get subjects for current class+term ──
+  function getSubjects() {
+    return [...new Set(
+      getGrades()
+        .filter(g => g.class === activeClass && g.term === activeTerm)
+        .map(g => g.subject)
+    )].sort();
+  }
+
+  // ── RENDER GRADES (subjects as columns) ──
+  function renderGrades() {
+    const q = document.getElementById('g-search').value.toLowerCase();
+    const subjects = getSubjects();
+    const students = getStudents()
+      .filter(s => s.class === activeClass)
+      .filter(s => !q || s.name.toLowerCase().includes(q));
+
+    const allGrades = getGrades();
+
+    // Build per-student subject map
+    const rows = students.map(s => {
+      const sg = allGrades.filter(g => g.studentId === s.id && g.term === activeTerm);
+      const map = {};
+      sg.forEach(g => { map[g.subject] = g; });
+      return { student: s, map };
+    });
+
+    // Header — Total shows /maxTotal
+    const maxTotal = subjects.length * 100;
+    document.getElementById('grades-thead').innerHTML = `
+      <tr>
+        <th>#</th>
+        <th>Student</th>
+        ${subjects.map(sub => `<th style="text-align:center;">${sub}</th>`).join('')}
+        <th style="text-align:center;">Total /${maxTotal}</th>
+        <th style="text-align:center;">Average</th>
+        ${canEdit ? '<th></th>' : ''}
+      </tr>`;
+
+    document.getElementById('grades-table').innerHTML = rows.length ? rows.map((r, i) => {
+      const scores = subjects.map(sub => r.map[sub]?.score).filter(v => v !== undefined);
+      const total = scores.length ? scores.reduce((a, b) => a + b, 0) : null;
+      const avg   = (total !== null && scores.length) ? Math.round((total / scores.length) * 10) / 10 : null;
+      const totalColor = total === null ? '#9ca3af' : total >= maxTotal * 0.8 ? '#15803d' : total >= maxTotal * 0.6 ? '#b45309' : '#b91c1c';
+      const avgColor   = avg   === null ? '#9ca3af' : avg   >= 80             ? '#15803d' : avg   >= 60             ? '#b45309' : '#b91c1c';
+
+      return `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${r.student.name}</strong></td>
+        ${subjects.map(sub => {
+          const g = r.map[sub];
+          const sc = g ? g.score : null;
+          const scColor = sc === null ? '#9ca3af' : sc >= 80 ? '#15803d' : sc >= 60 ? '#b45309' : '#b91c1c';
+          return `<td style="text-align:center;">
+            ${g
+              ? `<span style="font-weight:700;color:${scColor};">${sc}</span>
+                 ${canEdit ? `<br><span style="font-size:10px;">
+                   <button onclick="editGrade('${g.id}')" style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:10px;">edit</button>
+                   <button onclick="deleteGrade('${g.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:10px;">del</button>
+                 </span>` : ''}`
+              : `<span style="color:#d1d5db;">—</span>`}
+          </td>`;
+        }).join('')}
+        <td style="text-align:center;font-weight:700;color:${totalColor};">
+          ${total !== null ? total : '—'}
+        </td>
+        <td style="text-align:center;font-weight:700;color:${avgColor};">
+          ${avg !== null ? avg : '—'}
+        </td>
+        ${canEdit ? `<td>
+          <button class="btn btn-primary btn-sm" onclick="openAddGradeForStudent('${r.student.id}')">+ Score</button>
+        </td>` : ''}
+      </tr>`;
+    }).join('') : `<tr><td colspan="${4 + subjects.length + (canEdit ? 1 : 0)}" style="text-align:center;color:var(--text-light);padding:32px;">No students found.</td></tr>`;
+  }
+
+  // ── RENDER RANKINGS (subjects as columns, no grade) ──
+  function renderRankings() {
+    const subjects = getSubjects();
+    const allGrades = getGrades();
+    const students = getStudents().filter(s => s.class === activeClass);
+
+    const rankings = students.map(s => {
+      const sg = allGrades.filter(g => g.studentId === s.id && g.term === activeTerm);
+      const map = {};
+      sg.forEach(g => { map[g.subject] = g.score; });
+      const scores = Object.values(map);
+      const total = scores.length ? scores.reduce((a, b) => a + b, 0) : 0;
+      const avg   = scores.length ? Math.round((total / scores.length) * 10) / 10 : 0;
+      return { ...s, map, total, average: avg };
+    })
+    .sort((a, b) => b.total - a.total)
+    .map((s, i) => ({ ...s, rank: i + 1 }));
+
+    const maxTotal = subjects.length * 100;
+
+    document.getElementById('rankings-thead').innerHTML = `
+      <tr>
+        <th>Rank</th>
+        <th>Student</th>
+        ${subjects.map(sub => `<th style="text-align:center;">${sub}</th>`).join('')}
+        <th style="text-align:center;">Total /${maxTotal}</th>
+        <th style="text-align:center;">Average</th>
+      </tr>`;
+
+    document.getElementById('rankings-table').innerHTML = rankings.length ? rankings.map(s => {
+      const medal = s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '';
+      const totalColor = s.total >= maxTotal * 0.8 ? '#15803d' : s.total >= maxTotal * 0.6 ? '#b45309' : '#b91c1c';
+      const avgColor   = s.average >= 80 ? '#15803d' : s.average >= 60 ? '#b45309' : '#b91c1c';
+      return `<tr>
+        <td>
+          ${medal ? `<span style="font-size:15px;">${medal}</span> ` : ''}
+          <span class="${s.rank <= 3 ? 'rank-' + s.rank : ''}" style="font-weight:700;">#${s.rank}</span>
+        </td>
+        <td><strong>${s.name}</strong></td>
+        ${subjects.map(sub => {
+          const score = s.map[sub];
+          const scColor = score === undefined ? '#9ca3af' : score >= 80 ? '#15803d' : score >= 60 ? '#b45309' : '#b91c1c';
+          return `<td style="text-align:center;font-weight:700;color:${scColor};">
+            ${score !== undefined ? score : '<span style="color:#d1d5db;">—</span>'}
+          </td>`;
+        }).join('')}
+        <td style="text-align:center;font-weight:700;color:${totalColor};">
+          ${s.total > 0 ? s.total : '—'}
+        </td>
+        <td style="text-align:center;font-weight:700;color:${avgColor};">
+          ${s.average > 0 ? s.average : '—'}
+        </td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="${3 + subjects.length + 2}" style="text-align:center;color:var(--text-light);padding:32px;">No data.</td></tr>`;
+  }
+
+  // ── STUDENT REPORT ──
+  function renderReport() {
+    const sid = document.getElementById('rep-student').value;
+    if (!sid) return;
+    const student = getStudents().find(s => s.id === sid);
+    const grades = getGrades().filter(g => g.studentId === sid && g.term === activeTerm);
+    const avg = grades.length ? GradeCalc.getAverage(grades.map(g => g.score)) : 0;
+
+    // Rank within class for this term
+    const allStudents = getStudents().filter(s => s.class === activeClass);
+    const allGrades = getGrades();
+    const ranked = allStudents.map(s => {
+      const sg = allGrades.filter(g => g.studentId === s.id && g.term === activeTerm);
+      return { id: s.id, avg: sg.length ? GradeCalc.getAverage(sg.map(g => g.score)) : 0 };
+    }).sort((a, b) => b.avg - a.avg);
+    const rank = ranked.findIndex(r => r.id === sid) + 1;
+
+    document.getElementById('report-body').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:var(--surface2);border-radius:var(--r-lg);border:1px solid var(--border);">
+        <div style="width:52px;height:52px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:800;flex-shrink:0;">
+          ${student.name.charAt(0)}
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:16px;font-weight:700;">${student.name}</div>
+          <div style="font-size:12px;color:var(--text-muted);">Class ${student.class} · ${activeTerm}</div>
+        </div>
+        <div style="text-align:center;padding:0 16px;">
+          <div style="font-size:22px;font-weight:800;">${avg}%</div>
+          <div style="font-size:11px;color:var(--text-muted);">Average</div>
+        </div>
+        <div style="text-align:center;padding:0 16px;">
+          <div style="font-size:22px;font-weight:800;">#${rank}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Class Rank</div>
+        </div>
+      </div>
+      ${grades.length ? `
+      <table>
+        <thead>
+          <tr><th>Subject</th><th style="text-align:center;">Midterm /30</th><th style="text-align:center;">Final /50</th><th style="text-align:center;">Assignment /20</th><th style="text-align:center;">Total /100</th></tr>
+        </thead>
+        <tbody>
+          ${grades.map(g => `
+            <tr>
+              <td><strong>${g.subject}</strong></td>
+              <td style="text-align:center;">${g.midterm || '—'}</td>
+              <td style="text-align:center;">${g.final || '—'}</td>
+              <td style="text-align:center;">${g.assignment || '—'}</td>
+              <td style="text-align:center;font-weight:700;">${g.score}</td>
+            </tr>`).join('')}
+          <tr style="background:var(--surface2);font-weight:700;">
+            <td colspan="4">Overall Average</td>
+            <td style="text-align:center;">${avg}%</td>
+          </tr>
+        </tbody>
+      </table>` : '<div style="text-align:center;color:var(--text-light);padding:32px;">No grades recorded for this term.</div>'}
+    `;
+  }
+
+  // ── GRADE MODAL ──
+  function calcPreview() {
+    const w = getWeights();
+    const mEl = document.getElementById('g-midterm');
+    const fEl = document.getElementById('g-final');
+    const aEl = document.getElementById('g-assign');
+    const hasAny = mEl.value !== '' || fEl.value !== '' || aEl.value !== '';
+    if (!hasAny) { document.getElementById('calc-preview').innerHTML = 'Enter scores above'; return; }
+
+    const m = parseFloat(mEl.value) || 0;
+    const f = parseFloat(fEl.value) || 0;
+    const a = parseFloat(aEl.value) || 0;
+
+    mEl.style.borderColor = m > w.midterm    ? 'var(--danger)' : '';
+    fEl.style.borderColor = f > w.final      ? 'var(--danger)' : '';
+    aEl.style.borderColor = a > w.assignment ? 'var(--danger)' : '';
+
+    const total = m + f + a;
+    const color = total >= 80 ? '#15803d' : total >= 60 ? '#b45309' : '#b91c1c';
+    document.getElementById('calc-preview').innerHTML =
+      `<span style="color:${color};font-size:16px;font-weight:800;">${total}</span>
+       <span style="color:var(--text-muted);font-size:13px;"> / 100</span>
+       &nbsp;&nbsp;
+       <span style="font-size:12px;color:var(--text-muted);">(${m}/${w.midterm} + ${f}/${w.final} + ${a}/${w.assignment})</span>`;
+  }
+
+  function openAddGrade() {
+    document.getElementById('grade-modal-title').textContent = 'Add Grade';
+    document.getElementById('g-edit-id').value = '';
+    document.getElementById('g-subject').value = '';
+    ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('calc-preview').innerHTML = 'Enter scores above';
+    openModal('grade-modal');
+  }
+
+  function openAddGradeForStudent(sid) {
+    openAddGrade();
+    document.getElementById('g-student').value = sid;
+  }
+
+  function editGrade(id) {
+    const g = getGrades().find(g => g.id === id);
+    if (!g) return;
+    document.getElementById('grade-modal-title').textContent = 'Edit Grade';
+    document.getElementById('g-edit-id').value = g.id;
+    document.getElementById('g-student').value = g.studentId;
+    document.getElementById('g-subject').value = g.subject;
+    document.getElementById('g-midterm').value = g.midterm !== undefined ? g.midterm : '';
+    document.getElementById('g-final').value   = g.final   !== undefined ? g.final   : '';
+    document.getElementById('g-assign').value  = g.assignment !== undefined ? g.assignment : '';
+    calcPreview();
+    openModal('grade-modal');
+  }
+
+  function saveGrade() {
+    const sid = document.getElementById('g-student').value;
+    if (!sid) { toast('Select a student', 'error'); return; }
+    const subject = document.getElementById('g-subject').value.trim();
+    if (!subject) { toast('Enter a subject', 'error'); return; }
+
+    const midterm    = document.getElementById('g-midterm').value !== '' ? parseFloat(document.getElementById('g-midterm').value) : 0;
+    const finalEx    = document.getElementById('g-final').value   !== '' ? parseFloat(document.getElementById('g-final').value)   : 0;
+    const assignment = document.getElementById('g-assign').value  !== '' ? parseFloat(document.getElementById('g-assign').value)  : 0;
+
+    const w = getWeights();
+    if (midterm > w.midterm)       { toast(`Midterm cannot exceed ${w.midterm}`, 'error'); return; }
+    if (finalEx > w.final)         { toast(`Final exam cannot exceed ${w.final}`, 'error'); return; }
+    if (assignment > w.assignment) { toast(`Assignment cannot exceed ${w.assignment}`, 'error'); return; }
+
+    const student = getStudents().find(s => s.id === sid);
+    const score = GradeCalc.calcScore(midterm, finalEx, assignment);
+    const grade = GradeCalc.getGrade(score);
+    const grades = getGrades();
+    const editId = document.getElementById('g-edit-id').value;
+
+    const record = {
+      studentId: sid, studentName: student.name, class: activeClass,
+      subject, term: activeTerm,
+      year: new Date().getFullYear().toString(),
+      midterm, final: finalEx, assignment, score, grade
+    };
+
+    if (editId) {
+      const idx = grades.findIndex(g => g.id === editId);
+      grades[idx] = { ...grades[idx], ...record };
+      toast('Grade updated', 'success');
+    } else {
+      // Check for duplicate (same student + subject + term)
+      const dup = grades.find(g => g.studentId === sid && g.subject === subject && g.term === activeTerm);
+      if (dup) { toast('Grade already exists for this student/subject/term. Edit it instead.', 'error'); return; }
+      grades.push({ id: 'g_' + Date.now(), ...record });
+      toast('Grade added', 'success');
+    }
+    DB.set('grades', grades);
+    closeModal('grade-modal');
+    renderGrades();
+    renderRankings();
+  }
+
+  function deleteGrade(id) {
+    confirmDelete('Delete this grade record?', () => {
+      DB.set('grades', getGrades().filter(g => g.id !== id));
+      toast('Deleted');
+      renderGrades();
+      renderRankings();
+    });
+  }
+
+  populateClassSelector();
+</script>
+</body>
+</html>

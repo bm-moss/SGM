@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Students</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openAddModal()" id="add-btn">+ Add Student</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <h3>All Students</h3>
+          <div class="search-bar" style="margin:0;">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search" placeholder="Search by name or ID..." oninput="renderTable()" />
+            </div>
+            <select id="filter-class" onchange="renderTable()" style="padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="">All Classes</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Name</th><th>Class</th><th>Gender</th>
+                <th>Guardian</th><th>Phone</th><th>Enroll Date</th><th>Login</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Student</h3>
+      <button class="modal-close" onclick="closeModal('student-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Full Name</label>
+          <input type="text" id="f-name" placeholder="Student full name" required />
+        </div>
+        <div class="form-group">
+          <label>Student ID</label>
+          <input type="text" id="f-sid" placeholder="e.g. STU007" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-email" placeholder="student@school.edu" />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="f-phone" placeholder="555-0000" />
+        </div>
+        <div class="form-group">
+          <label>Class</label>
+          <select id="f-class"></select>
+        </div>
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="f-dob" />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="f-gender">
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Enroll Date</label>
+          <input type="date" id="f-enroll" />
+        </div>
+        <div class="form-group">
+          <label>Guardian Name</label>
+          <input type="text" id="f-guardian" placeholder="Parent/Guardian name" />
+        </div>
+        <div class="form-group">
+          <label>Guardian Phone</label>
+          <input type="text" id="f-gphone" placeholder="555-0000" />
+        </div>
+        <div class="form-group full-width">
+          <label>Address</label>
+          <input type="text" id="f-address" placeholder="Home address" />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="graduated">Graduated</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Login Credentials -->
+      <div id="credentials-section" style="margin-top:4px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:12px;">🔐 Login Credentials</div>
+        <div class="form-grid">
+          <div class="form-group" style="margin:0;">
+            <label>Username *</label>
+            <input type="text" id="f-username" placeholder="e.g. alice.johnson" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Password * <span id="pw-hint" style="font-weight:400;color:var(--text-light);">(required)</span></label>
+            <input type="password" id="f-password" placeholder="Set login password" />
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-light);margin-top:8px;">These credentials will be used by the student to log in to their portal.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStudent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('students')) window.location.href = 'dashboard.html';
+  buildSidebar('students');
+
+  if (!Auth.isAdmin()) document.getElementById('add-btn').classList.add('hidden');
+
+  function getStudents() { return DB.get('students') || []; }
+
+  function populateClassFilter() {
+    const classes = [...new Set(getStudents().map(s => s.class))].sort();
+    const sel = document.getElementById('filter-class');
+    classes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = 'Class ' + c;
+      sel.appendChild(o);
+    });
+  }
+
+  // Load classes from DB into modal select
+  function populateClassSelect(currentVal) {
+    const classes = DB.get('classes') || [];
+    const sel = document.getElementById('f-class');
+    sel.innerHTML = '';
+    classes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.name; o.textContent = c.name;
+      sel.appendChild(o);
+    });
+    if (currentVal) sel.value = currentVal;
+  }
+
+  function renderTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const cls = document.getElementById('filter-class').value;
+    const students = getStudents().filter(s =>
+      (!q || s.name.toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q)) &&
+      (!cls || s.class === cls)
+    );
+
+    document.getElementById('students-table').innerHTML = students.length ? students.map(s => {
+      const acc = (DB.get('accounts') || []).find(a => a.linkedId === s.id && a.role === 'student');
+      return `
+      <tr>
+        <td><span class="badge badge-secondary">${s.studentId}</span></td>
+        <td><strong>${s.name}</strong></td>
+        <td><span class="badge badge-info">${s.class}</span></td>
+        <td>${s.gender}</td>
+        <td>${s.guardian}</td>
+        <td>${s.phone}</td>
+        <td>${formatDate(s.enrollDate)}</td>
+        <td>
+          ${acc
+            ? `<span style="font-size:12px;font-weight:600;color:var(--primary);">@${acc.username}</span>`
+            : `<span style="font-size:11px;color:var(--danger);">No account</span>`}
+        </td>
+        <td><span class="badge badge-${s.status === 'active' ? 'success' : s.status === 'graduated' ? 'info' : 'secondary'}">${s.status}</span></td>
+        <td>
+          ${Auth.isAdmin() ? `
+            <button class="btn btn-warning btn-sm" onclick="editStudent('${s.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">🗑️</button>
+          ` : '<span style="color:#5f6368;font-size:13px;">View only</span>'}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="10" style="text-align:center;color:#5f6368;padding:32px;">No students found.</td></tr>';
+  }
+
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add Student';
+    document.getElementById('edit-id').value = '';
+    ['name','sid','email','phone','guardian','gphone','address','username','password'].forEach(f => {
+      const el = document.getElementById('f-' + f);
+      if (el) el.value = '';
+    });
+    populateClassSelect();
+    document.getElementById('f-gender').value = 'Male';
+    document.getElementById('f-status').value = 'active';
+    document.getElementById('f-enroll').value = new Date().toISOString().split('T')[0];
+    document.getElementById('credentials-section').style.display = '';
+    document.getElementById('pw-hint').textContent = '(required)';
+    openModal('student-modal');
+  }
+
+  function editStudent(id) {
+    const s = getStudents().find(s => s.id === id);
+    if (!s) return;
+    document.getElementById('modal-title').textContent = 'Edit Student';
+    document.getElementById('edit-id').value = s.id;
+    document.getElementById('f-name').value = s.name;
+    document.getElementById('f-sid').value = s.studentId;
+    document.getElementById('f-email').value = s.email;
+    document.getElementById('f-phone').value = s.phone;
+    populateClassSelect(s.class);
+    document.getElementById('f-dob').value = s.dob;
+    document.getElementById('f-gender').value = s.gender;
+    document.getElementById('f-enroll').value = s.enrollDate;
+    document.getElementById('f-guardian').value = s.guardian;
+    document.getElementById('f-gphone').value = s.guardianPhone;
+    document.getElementById('f-address').value = s.address;
+    document.getElementById('f-status').value = s.status;
+    // Pre-fill existing account credentials if linked
+    const acc = (DB.get('accounts') || []).find(a => a.linkedId === id && a.role === 'student');
+    document.getElementById('f-username').value = acc ? acc.username : '';
+    document.getElementById('f-password').value = '';
+    document.getElementById('pw-hint').textContent = '(leave blank to keep current)';
+    openModal('student-modal');
+  }
+
+  function saveStudent() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('Name is required', 'error'); return; }
+
+    const username = document.getElementById('f-username').value.trim();
+    const password = document.getElementById('f-password').value;
+    const editId = document.getElementById('edit-id').value;
+
+    if (!username) { toast('Username is required', 'error'); return; }
+    if (!editId && !password) { toast('Password is required', 'error'); return; }
+
+    // Check username uniqueness across all accounts
+    const accounts = DB.get('accounts') || [];
+    const dupAcc = accounts.find(a => a.username === username && a.linkedId !== editId);
+    if (dupAcc) { toast('Username already taken', 'error'); return; }
+
+    const students = getStudents();
+    const record = {
+      name, studentId: document.getElementById('f-sid').value,
+      email: document.getElementById('f-email').value,
+      phone: document.getElementById('f-phone').value,
+      class: document.getElementById('f-class').value,
+      dob: document.getElementById('f-dob').value,
+      gender: document.getElementById('f-gender').value,
+      enrollDate: document.getElementById('f-enroll').value,
+      guardian: document.getElementById('f-guardian').value,
+      guardianPhone: document.getElementById('f-gphone').value,
+      address: document.getElementById('f-address').value,
+      status: document.getElementById('f-status').value
+    };
+
+    let studentId;
+    if (editId) {
+      const idx = students.findIndex(s => s.id === editId);
+      students[idx] = { ...students[idx], ...record };
+      studentId = editId;
+      toast('Student updated', 'success');
+    } else {
+      studentId = 's_' + Date.now();
+      students.push({ id: studentId, ...record });
+      toast('Student added', 'success');
+    }
+    DB.set('students', students);
+
+    // Create or update linked account
+    const existingAccIdx = accounts.findIndex(a => a.linkedId === studentId && a.role === 'student');
+    if (existingAccIdx !== -1) {
+      accounts[existingAccIdx].username = username;
+      accounts[existingAccIdx].name = name;
+      accounts[existingAccIdx].email = record.email;
+      if (password) accounts[existingAccIdx].password = password;
+    } else {
+      accounts.push({
+        id: 'acc_' + Date.now(),
+        username, password,
+        name, role: 'student',
+        email: record.email,
+        active: true,
+        linkedId: studentId,
+        permissions: ['student_portal', 'result'],
+        createdAt: new Date().toISOString()
+      });
+    }
+    DB.set('accounts', accounts);
+
+    closeModal('student-modal');
+    renderTable();
+  }
+
+  function deleteStudent(id) {
+    confirmDelete('Delete this student and their login account?', () => {
+      DB.set('students', getStudents().filter(s => s.id !== id));
+      // Also remove linked account
+      DB.set('accounts', (DB.get('accounts') || []).filter(a => !(a.linkedId === id && a.role === 'student')));
+      toast('Student deleted');
+      renderTable();
+    });
+  }
+
+  populateClassFilter();
+  renderTable();
+</script>
+</body>
+</html>

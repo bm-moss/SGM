@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Departments & Classes – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Departments & Classes</div>
+    </div>
+
+    <div class="page-content">
+      <div class="tabs">
+        <button class="tab-btn active" data-group="dc" data-tab="tab-depts">🏢 Departments</button>
+        <button class="tab-btn" data-group="dc" data-tab="tab-classes">🏫 Classes</button>
+      </div>
+
+      <!-- DEPARTMENTS -->
+      <div class="tab-content active" data-group="dc" id="tab-depts">
+        <div class="card">
+          <div class="card-header">
+            <h3>Departments</h3>
+            <button class="btn btn-primary" onclick="openDeptModal()" id="add-dept-btn">+ Add Department</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>#</th><th>Name</th><th>Description</th><th>Head</th><th>Teachers</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="dept-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLASSES -->
+      <div class="tab-content" data-group="dc" id="tab-classes">
+        <div class="card">
+          <div class="card-header">
+            <h3>Classes</h3>
+            <button class="btn btn-primary" onclick="openClassModal()" id="add-class-btn">+ Add Class</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>#</th><th>Class Name</th><th>Grade</th><th>Section</th><th>Room</th><th>Homeroom Teacher</th><th>Capacity</th><th>Students</th><th>Actions</th></tr></thead>
+              <tbody id="class-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Department Modal -->
+<div class="modal-overlay" id="dept-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="dept-modal-title">Add Department</h3>
+      <button class="modal-close" onclick="closeModal('dept-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dept-edit-id" />
+      <div class="form-group">
+        <label>Department Name *</label>
+        <input type="text" id="d-name" placeholder="e.g. Science" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="d-desc" placeholder="Brief description"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Department Head</label>
+        <select id="d-head">
+          <option value="">-- None --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="d-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('dept-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDept()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Class Modal -->
+<div class="modal-overlay" id="class-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="class-modal-title">Add Class</h3>
+      <button class="modal-close" onclick="closeModal('class-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="class-edit-id" />
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Class Name *</label>
+          <input type="text" id="c-name" placeholder="e.g. 10A" />
+        </div>
+        <div class="form-group">
+          <label>Grade</label>
+          <select id="c-grade">
+            <option>9</option><option>10</option><option>11</option><option>12</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Section</label>
+          <input type="text" id="c-section" placeholder="e.g. A" maxlength="2" />
+        </div>
+        <div class="form-group">
+          <label>Room</label>
+          <input type="text" id="c-room" placeholder="e.g. Room 101" />
+        </div>
+        <div class="form-group">
+          <label>Capacity</label>
+          <input type="number" id="c-capacity" placeholder="30" min="1" max="100" />
+        </div>
+        <div class="form-group">
+          <label>Homeroom Teacher</label>
+          <select id="c-teacher">
+            <option value="">-- None --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('class-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClass()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('departments')) window.location.href = 'dashboard.html';
+  buildSidebar('departments');
+  initTabs();
+
+  const canEdit = Auth.isAdmin();
+  if (!canEdit) {
+    document.getElementById('add-dept-btn').classList.add('hidden');
+    document.getElementById('add-class-btn').classList.add('hidden');
+  }
+
+  function getDepts() { return DB.get('departments') || []; }
+  function getClasses() { return DB.get('classes') || []; }
+  function getTeachers() { return DB.get('teachers') || []; }
+  function getStudents() { return DB.get('students') || []; }
+
+  function populateTeacherSelects() {
+    const teachers = getTeachers();
+    ['d-head','c-teacher'].forEach(id => {
+      const sel = document.getElementById(id);
+      const first = sel.options[0];
+      sel.innerHTML = '';
+      sel.appendChild(first);
+      teachers.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.id; o.textContent = t.name;
+        sel.appendChild(o);
+      });
+    });
+  }
+
+  function renderDepts() {
+    const depts = getDepts();
+    const teachers = getTeachers();
+    document.getElementById('dept-table').innerHTML = depts.length ? depts.map((d, i) => {
+      const teacherCount = teachers.filter(t => t.department === d.name).length;
+      const head = teachers.find(t => t.id === d.head);
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${d.name}</strong></td>
+        <td style="color:#5f6368;">${d.description || '-'}</td>
+        <td>${head ? head.name : (d.head || '-')}</td>
+        <td><span class="badge badge-info">${teacherCount}</span></td>
+        <td><span class="badge badge-${d.status==='active'?'success':'secondary'}">${d.status}</span></td>
+        <td>${canEdit ? `
+          <button class="btn btn-warning btn-sm" onclick="editDept('${d.id}')">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDept('${d.id}')">🗑️</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:#5f6368;padding:32px;">No departments.</td></tr>';
+  }
+
+  function renderClasses() {
+    const classes = getClasses();
+    const teachers = getTeachers();
+    const students = getStudents();
+    document.getElementById('class-table').innerHTML = classes.length ? classes.map((c, i) => {
+      const ct = teachers.find(t => t.id === c.classTeacher);
+      const studentCount = students.filter(s => s.class === c.name).length;
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${c.name}</strong></td>
+        <td>${c.grade}</td>
+        <td>${c.section}</td>
+        <td>${c.room || '-'}</td>
+        <td>
+          ${ct
+            ? `<div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--primary),#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;">${ct.name.charAt(0)}</div>
+                <div>
+                  <div style="font-weight:600;font-size:13px;">${ct.name}</div>
+                  <div style="font-size:11px;color:var(--text-muted);">${ct.subject}</div>
+                </div>
+              </div>`
+            : '<span style="color:var(--text-light);font-size:13px;">— Not assigned —</span>'}
+        </td>
+        <td>${c.capacity}</td>
+        <td>
+          <span class="badge badge-${studentCount >= c.capacity ? 'danger' : 'success'}">${studentCount}/${c.capacity}</span>
+        </td>
+        <td>${canEdit ? `
+          <button class="btn btn-warning btn-sm" onclick="editClass('${c.id}')">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteClass('${c.id}')">🗑️</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="9" style="text-align:center;color:#5f6368;padding:32px;">No classes.</td></tr>';
+  }
+
+  // DEPARTMENTS CRUD
+  function openDeptModal() {
+    document.getElementById('dept-modal-title').textContent = 'Add Department';
+    document.getElementById('dept-edit-id').value = '';
+    document.getElementById('d-name').value = '';
+    document.getElementById('d-desc').value = '';
+    document.getElementById('d-status').value = 'active';
+    populateTeacherSelects();
+    document.getElementById('d-head').value = '';
+    openModal('dept-modal');
+  }
+
+  function editDept(id) {
+    const d = getDepts().find(d => d.id === id);
+    if (!d) return;
+    document.getElementById('dept-modal-title').textContent = 'Edit Department';
+    document.getElementById('dept-edit-id').value = d.id;
+    document.getElementById('d-name').value = d.name;
+    document.getElementById('d-desc').value = d.description || '';
+    document.getElementById('d-status').value = d.status;
+    populateTeacherSelects();
+    document.getElementById('d-head').value = d.head || '';
+    openModal('dept-modal');
+  }
+
+  function saveDept() {
+    const name = document.getElementById('d-name').value.trim();
+    if (!name) { toast('Department name is required', 'error'); return; }
+    const depts = getDepts();
+    const editId = document.getElementById('dept-edit-id').value;
+    const record = { name, description: document.getElementById('d-desc').value, head: document.getElementById('d-head').value, status: document.getElementById('d-status').value };
+    if (editId) {
+      const idx = depts.findIndex(d => d.id === editId);
+      depts[idx] = { ...depts[idx], ...record };
+      toast('Department updated', 'success');
+    } else {
+      depts.push({ id: 'dep_' + Date.now(), ...record });
+      toast('Department added', 'success');
+    }
+    DB.set('departments', depts);
+    closeModal('dept-modal');
+    renderDepts();
+  }
+
+  function deleteDept(id) {
+    confirmDelete('Delete this department?', () => {
+      DB.set('departments', getDepts().filter(d => d.id !== id));
+      toast('Deleted'); renderDepts();
+    });
+  }
+
+  // CLASSES CRUD
+  function openClassModal() {
+    document.getElementById('class-modal-title').textContent = 'Add Class';
+    document.getElementById('class-edit-id').value = '';
+    ['c-name','c-section','c-room'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('c-grade').value = '10';
+    document.getElementById('c-capacity').value = '30';
+    populateTeacherSelects();
+    document.getElementById('c-teacher').value = '';
+    openModal('class-modal');
+  }
+
+  function editClass(id) {
+    const c = getClasses().find(c => c.id === id);
+    if (!c) return;
+    document.getElementById('class-modal-title').textContent = 'Edit Class';
+    document.getElementById('class-edit-id').value = c.id;
+    document.getElementById('c-name').value = c.name;
+    document.getElementById('c-grade').value = c.grade;
+    document.getElementById('c-section').value = c.section;
+    document.getElementById('c-room').value = c.room || '';
+    document.getElementById('c-capacity').value = c.capacity;
+    populateTeacherSelects();
+    document.getElementById('c-teacher').value = c.classTeacher || '';
+    openModal('class-modal');
+  }
+
+  function saveClass() {
+    const name = document.getElementById('c-name').value.trim();
+    if (!name) { toast('Class name is required', 'error'); return; }
+    const classes = getClasses();
+    const editId = document.getElementById('class-edit-id').value;
+    const record = {
+      name, grade: document.getElementById('c-grade').value,
+      section: document.getElementById('c-section').value,
+      room: document.getElementById('c-room').value,
+      capacity: parseInt(document.getElementById('c-capacity').value) || 30,
+      classTeacher: document.getElementById('c-teacher').value
+    };
+    if (editId) {
+      const idx = classes.findIndex(c => c.id === editId);
+      classes[idx] = { ...classes[idx], ...record };
+      toast('Class updated', 'success');
+    } else {
+      classes.push({ id: 'cls_' + Date.now(), ...record });
+      toast('Class added', 'success');
+    }
+    DB.set('classes', classes);
+    closeModal('class-modal');
+    renderClasses();
+  }
+
+  function deleteClass(id) {
+    confirmDelete('Delete this class?', () => {
+      DB.set('classes', getClasses().filter(c => c.id !== id));
+      toast('Deleted'); renderClasses();
+    });
+  }
+
+  populateTeacherSelects();
+  renderDepts();
+  renderClasses();
+</script>
+</body>
+</html>

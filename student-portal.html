@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Portal – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .portal-layout{display:flex;min-height:100vh;}
+    .portal-sidebar{width:240px;background:var(--sidebar-bg);color:var(--sidebar-text);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;}
+    .portal-main{margin-left:240px;flex:1;}
+    .msg-thread{display:flex;flex-direction:column;gap:12px;max-height:380px;overflow-y:auto;padding:4px 0 12px;}
+    .msg-bubble{max-width:76%;padding:11px 15px;border-radius:16px;font-size:14px;line-height:1.5;}
+    .msg-bubble.sent{background:var(--primary);color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+    .msg-bubble.received{background:#f1f3f4;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;}
+    .msg-meta{font-size:11px;margin-top:4px;opacity:.7;}
+    .msg-bubble.sent .msg-meta{text-align:right;}
+    .msg-input-row{display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+    .msg-input-row input{flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:24px;font-size:14px;}
+    .msg-input-row input:focus{outline:none;border-color:var(--primary);}
+    .conv-item{padding:14px 18px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
+    .conv-item:hover{background:#f8f9fa;}
+    .conv-item.active{background:#e8f0fe;}
+  </style>
+</head>
+<body>
+<div class="portal-layout">
+  <aside class="portal-sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">Student Portal</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="s-avatar">S</div>
+      <div class="user-info">
+        <div class="user-name" id="s-name">Loading...</div>
+        <div class="user-role" id="s-class" style="color:rgba(255,255,255,.5);font-size:12px;"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">My Portal</div>
+      <button class="nav-item active" id="nav-grades" onclick="showSection('grades')">
+        <span class="nav-icon">📊</span> My Result
+      </button>
+      <button class="nav-item" id="nav-attendance" onclick="showSection('attendance')">
+        <span class="nav-icon">📅</span> My Attendance
+      </button>
+      <button class="nav-item" id="nav-messages" onclick="showSection('messages')">
+        <span class="nav-icon">💬</span> Complaints
+        <span id="unread-badge" class="badge badge-danger" style="margin-left:auto;display:none;font-size:11px;"></span>
+      </button>
+      <button class="nav-item" id="nav-password" onclick="showSection('password')">
+        <span class="nav-icon">🔑</span> Change Password
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="portal-main">
+    <div class="topbar">
+      <div class="topbar-title" id="section-title">My Grades</div>
+      <div class="topbar-actions">
+        <span style="font-size:13px;color:#5f6368;" id="portal-date"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- GRADES -->
+      <div id="section-grades">
+        <div class="stats-grid" id="grade-summary"></div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;">
+          <select id="grade-term-filter" onchange="renderGrades()" style="padding:9px 14px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+            <option value="">All Semesters</option>
+            <option value="Semester 1">Semester 1</option>
+            <option value="Semester 2">Semester 2</option>
+            <option value="Semester 3">Semester 3</option>
+          </select>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><h3>My Grade Records</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Subject</th><th>Semester</th><th style="text-align:center;">Midterm /100</th><th style="text-align:center;">Final /100</th><th style="text-align:center;">Assignment /100</th><th style="text-align:center;">Score /100</th></tr></thead>
+              <tbody id="student-grades-table"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Class Rankings</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Rank</th><th>Student</th><th>Average</th></tr></thead>
+              <tbody id="class-rank-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ATTENDANCE -->
+      <div id="section-attendance" class="hidden">
+        <div class="stats-grid" id="att-summary"></div>
+        <div class="card">
+          <div class="card-header">
+            <h3>Attendance History</h3>
+            <select id="att-status-filter" onchange="renderAttendance()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="">All</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+              <option value="late">Late</option>
+            </select>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead>
+              <tbody id="student-att-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MESSAGES / COMPLAINTS -->
+      <div id="section-messages" class="hidden">
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;min-height:520px;">
+          <div class="card" style="overflow:hidden;">
+            <div class="card-header" style="padding:14px 18px;">
+              <h3 style="font-size:15px;">Conversations</h3>
+              <button class="btn btn-primary btn-sm" onclick="openNewMessage()">+ New</button>
+            </div>
+            <div id="conversation-list"></div>
+          </div>
+          <div class="card" id="thread-panel" style="display:flex;flex-direction:column;">
+            <div id="thread-empty" style="display:flex;align-items:center;justify-content:center;flex:1;flex-direction:column;gap:12px;color:#5f6368;padding:40px;">
+              <span style="font-size:48px;">💬</span>
+              <p>Select a conversation or start a new one</p>
+            </div>
+            <div id="thread-content" style="display:none;flex-direction:column;flex:1;">
+              <div class="card-header" style="padding:14px 20px;">
+                <div>
+                  <div style="font-weight:700;font-size:15px;" id="thread-title"></div>
+                  <div style="font-size:12px;color:#5f6368;" id="thread-sub"></div>
+                </div>
+                <span id="thread-status-badge"></span>
+              </div>
+              <div style="padding:16px 20px;flex:1;display:flex;flex-direction:column;">
+                <div class="msg-thread" id="msg-thread"></div>
+                <div class="msg-input-row" id="msg-input-row">
+                  <input type="text" id="msg-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()" />
+                  <button class="btn btn-primary" onclick="sendMessage()" style="border-radius:24px;padding:10px 18px;">Send ➤</button>
+                </div>
+                <div id="msg-closed-note" style="display:none;text-align:center;padding:10px;background:#f8f9fa;border-radius:8px;color:#5f6368;font-size:13px;margin-top:8px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHANGE PASSWORD -->
+      <div id="section-password" class="hidden">
+        <div class="card" style="max-width:460px;margin:0 auto;">
+          <div class="card-header"><h3>🔑 Change Password</h3></div>
+          <div class="card-body">
+            <div class="alert alert-info">Your password is private. Only you can change it here — admins cannot see it.</div>
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="pw-current" placeholder="Enter your current password" />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="pw-new" placeholder="At least 6 characters" />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="pw-confirm" placeholder="Repeat new password" />
+            </div>
+            <div id="pw-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;margin-bottom:14px;"></div>
+            <button class="btn btn-primary btn-lg" onclick="changePassword()">Update Password</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- New Message Modal -->
+<div class="modal-overlay" id="new-msg-modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>New Message</h3>
+      <button class="modal-close" onclick="closeModal('new-msg-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Send To (Role)</label>
+        <select id="msg-recv-role" onchange="populateMsgReceivers()">
+          <option value="teacher">Teacher</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Receiver Name *</label>
+        <select id="msg-recv-id">
+          <option value="">-- Select --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subject *</label>
+        <input type="text" id="msg-subject" placeholder="e.g. Question about my Math grade" />
+      </div>
+      <div class="form-group">
+        <label>Message *</label>
+        <textarea id="msg-body" placeholder="Write your message here..." style="min-height:100px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-msg-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendNewMessage()">Send Message</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // ===== INIT =====
+  const user = Auth.requireAuth();
+  if (!user || user.role !== 'student') {
+    window.location.href = user ? 'dashboard.html' : 'index.html';
+  }
+
+  // SECURITY: student accounts can ONLY access this portal
+  // They cannot access any other page — enforced by role check above
+
+  // Find linked student record — ONLY the linked student, no fallback to other students
+  let studentRecord = null;
+  const allStudents = DB.get('students') || [];
+
+  if (user.linkedId) {
+    // Strict: only match the exact linked student ID
+    studentRecord = allStudents.find(s => s.id === user.linkedId) || null;
+  }
+
+  // Fallback only by exact name+email match (not just name alone — too loose)
+  if (!studentRecord && user.email) {
+    studentRecord = allStudents.find(s =>
+      s.email && s.email.toLowerCase() === user.email.toLowerCase()
+    ) || null;
+  }
+
+  if (!studentRecord) {
+    document.body.innerHTML = `
+      <div style="padding:60px;text-align:center;font-family:sans-serif;background:#f5f6fa;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;padding:48px;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+          <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">Account Not Linked</h2>
+          <p style="color:#6b7280;margin-bottom:24px;line-height:1.6;">
+            Your account is not linked to a student record.<br>
+            Please contact your administrator to link your account.
+          </p>
+          <p style="font-size:12px;color:#9ca3af;margin-bottom:20px;">Logged in as: <strong>${user.username}</strong></p>
+          <a href="index.html" onclick="Auth.logout()" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 24px;border-radius:8px;font-weight:600;font-size:14px;">Logout</a>
+        </div>
+      </div>`;
+    throw new Error('No linked student record');
+  }
+
+  document.getElementById('s-avatar').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('s-name').textContent = user.name;
+  document.getElementById('s-class').textContent = 'Class ' + studentRecord.class + ' · ' + studentRecord.studentId;
+  document.getElementById('portal-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  // Check result permission — students have it by default, admin can revoke it
+  const canViewResult = !user.permissions || user.permissions.includes('result') || user.permissions.includes('student_portal');
+  if (!canViewResult) {
+    document.getElementById('nav-grades').style.display = 'none';
+    // Replace grades section with a permission notice
+    document.getElementById('section-grades').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">Result Access Not Enabled</div>
+        <div style="font-size:13px;color:var(--text-light);">Your administrator has not granted you access to view your result.<br>Please contact your school admin.</div>
+      </div>`;
+  }
+
+  let activeConvId = null;
+
+  // ===== SECTION SWITCHING =====
+  function showSection(name) {
+    ['grades','attendance','messages','password'].forEach(s => {
+      document.getElementById('section-' + s).classList.toggle('hidden', s !== name);
+      const nav = document.getElementById('nav-' + s);
+      if (nav) nav.classList.toggle('active', s === name);
+    });
+    const titles = {
+      grades: 'My Result',
+      attendance: 'My Attendance',
+      messages: 'Complaints & Messages',
+      password: 'Change Password'
+    };
+    document.getElementById('section-title').textContent = titles[name] || name;
+    if (name === 'messages') { renderConversations(); updateUnreadBadge(); }
+    if (name === 'attendance') renderAttendance();
+    if (name === 'grades') renderGrades();
+  }
+
+  // ===== CHANGE PASSWORD =====
+  function changePassword() {
+    const current  = document.getElementById('pw-current').value;
+    const newPw    = document.getElementById('pw-new').value;
+    const confirm  = document.getElementById('pw-confirm').value;
+    const msgEl    = document.getElementById('pw-msg');
+
+    function showMsg(text, ok) {
+      msgEl.style.display = 'block';
+      msgEl.style.background = ok ? '#dcfce7' : '#fee2e2';
+      msgEl.style.color = ok ? '#15803d' : '#b91c1c';
+      msgEl.textContent = text;
+    }
+
+    if (!current || !newPw || !confirm) { showMsg('All fields are required.', false); return; }
+    if (newPw.length < 6) { showMsg('New password must be at least 6 characters.', false); return; }
+    if (newPw !== confirm) { showMsg('New passwords do not match.', false); return; }
+
+    const accounts = DB.get('accounts') || [];
+    const idx = accounts.findIndex(a => a.id === user.id);
+    if (idx === -1) { showMsg('Account not found.', false); return; }
+    if (accounts[idx].password !== current) { showMsg('Current password is incorrect.', false); return; }
+
+    accounts[idx].password = newPw;
+    DB.set('accounts', accounts);
+
+    // Update session
+    const updated = { ...user, password: newPw };
+    sessionStorage.setItem('sms_session', JSON.stringify(updated));
+
+    showMsg('✅ Password updated successfully!', true);
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+  }
+
+  // ===== GRADES =====
+  function renderGrades() {
+    const term = document.getElementById('grade-term-filter').value;
+    const allGrades = DB.get('grades') || [];
+    const myGrades = allGrades.filter(g => g.studentId === studentRecord.id && (!term || g.term === term));
+
+    const avg = myGrades.length ? GradeCalc.getAverage(myGrades.map(g => g.score)) : 0;
+    const overallGrade = GradeCalc.getGrade(avg);
+    const best = myGrades.length ? myGrades.reduce((a,b) => a.score > b.score ? a : b) : null;
+    const rankings = GradeCalc.getRankings(allStudents, allGrades, studentRecord.class, 'Semester 1', '2025');
+    const myRank = rankings.find(r => r.id === studentRecord.id);
+
+    document.getElementById('grade-summary').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon blue" style="font-size:28px;width:60px;height:60px;">
+          <span class="${GradeCalc.getGradeClass(overallGrade)}" style="font-size:26px;font-weight:800;">${overallGrade}</span>
+        </div>
+        <div class="stat-info"><div class="stat-value">${avg}%</div><div class="stat-label">Overall Average</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">🏆</div>
+        <div class="stat-info"><div class="stat-value">${myRank ? '#'+myRank.rank : '-'}</div><div class="stat-label">Class Rank</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">📚</div>
+        <div class="stat-info"><div class="stat-value">${myGrades.length}</div><div class="stat-label">Subjects Graded</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">⭐</div>
+        <div class="stat-info">
+          <div class="stat-value" style="font-size:16px;">${best ? best.subject : '-'}</div>
+          <div class="stat-label">Best Subject${best ? ' ('+best.score+'%)' : ''}</div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('student-grades-table').innerHTML = myGrades.length
+      ? myGrades.map(g => `
+          <tr>
+            <td><strong>${g.subject}</strong></td>
+            <td>${g.term}</td>
+            <td style="text-align:center;">${g.midterm !== undefined && g.midterm !== '' ? g.midterm + '/100' : '—'}</td>
+            <td style="text-align:center;">${g.final !== undefined && g.final !== '' ? g.final + '/100' : '—'}</td>
+            <td style="text-align:center;">${g.assignment !== undefined && g.assignment !== '' ? g.assignment + '/100' : '—'}</td>
+            <td style="text-align:center;font-weight:700;color:${g.score>=80?'#15803d':g.score>=60?'#b45309':'#b91c1c'};">${g.score}/100</td>
+          </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:32px;">No grade records yet for this semester.</td></tr>';
+
+    document.getElementById('class-rank-table').innerHTML = rankings.slice(0,10).map(r => {
+      const isSelf = r.id === studentRecord.id;
+      return `<tr style="${isSelf?'background:#e8f0fe;':''}">
+        <td style="font-weight:700;">${r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':'#'+r.rank} ${isSelf?'<span style="color:var(--primary);font-size:12px;">← You</span>':''}</td>
+        <td>${r.name}</td>
+        <td><strong>${r.average}%</strong></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ===== ATTENDANCE =====
+  function renderAttendance() {
+    const filter = document.getElementById('att-status-filter').value;
+    const allAtt = (DB.get('attendance')||[]).filter(a => a.type==='student' && a.personId===studentRecord.id);
+    const filtered = filter ? allAtt.filter(a => a.status===filter) : allAtt;
+    const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
+    const present = allAtt.filter(a=>a.status==='present').length;
+    const absent = allAtt.filter(a=>a.status==='absent').length;
+    const late = allAtt.filter(a=>a.status==='late').length;
+    const total = allAtt.length;
+    const rate = total ? Math.round((present/total)*100) : 0;
+
+    document.getElementById('att-summary').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="stat-value">${total}</div><div class="stat-label">Total Days</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${present}</div><div class="stat-label">Present</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><div class="stat-value">${absent}</div><div class="stat-label">Absent</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">📊</div><div class="stat-info">
+        <div class="stat-value" style="color:${rate>=80?'#137333':rate>=60?'#b06000':'#c5221f'}">${rate}%</div>
+        <div class="stat-label">Attendance Rate</div>
+      </div></div>
+    `;
+
+    const sm = {present:'badge-success',absent:'badge-danger',late:'badge-warning'};
+    document.getElementById('student-att-table').innerHTML = sorted.length
+      ? sorted.map(a=>`<tr>
+          <td>${formatDate(a.date)}</td>
+          <td><span class="badge ${sm[a.status]||'badge-secondary'}">${a.status}</span></td>
+          <td style="color:#5f6368;font-size:13px;">${a.note||'-'}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:#5f6368;padding:32px;">No attendance records.</td></tr>';
+  }
+
+  // ===== MESSAGES =====
+  // Student can only see complaints they submitted
+  function getMyConversations() {
+    return (DB.get('complaints')||[])
+      .filter(c => c.submitterId === user.id)
+      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  function updateUnreadBadge() {
+    const unread = getMyConversations().filter(c => {
+      if (!c.readBy) return c.messages && c.messages.length > 0;
+      return !c.readBy.includes(user.id) && c.messages && c.messages.length > 0;
+    }).length;
+    const badge = document.getElementById('unread-badge');
+    badge.textContent = unread;
+    badge.style.display = unread > 0 ? '' : 'none';
+  }
+
+  function renderConversations() {
+    const convs = getMyConversations();
+    const sm = {open:'badge-danger','in-progress':'badge-warning',resolved:'badge-success',closed:'badge-secondary'};
+    document.getElementById('conversation-list').innerHTML = convs.length
+      ? convs.map(c => {
+          const hasNew = c.messages && c.messages.length > 0 && (!c.readBy || !c.readBy.includes(user.id));
+          return `<div class="conv-item ${activeConvId===c.id?'active':''}" onclick="openConversation('${c.id}')">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+              <span style="font-weight:${hasNew?'700':'600'};font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.title}</span>
+              ${hasNew?'<span style="width:8px;height:8px;border-radius:50%;background:#1a73e8;flex-shrink:0;"></span>':''}
+            </div>
+            <div style="font-size:12px;color:#5f6368;display:flex;justify-content:space-between;">
+              <span>To: ${c.receiverName||'-'}</span>
+              <span class="badge ${sm[c.status]||'badge-secondary'}" style="font-size:10px;">${c.status}</span>
+            </div>
+          </div>`;
+        }).join('')
+      : '<div style="padding:32px;text-align:center;color:#5f6368;font-size:14px;">No messages yet.<br>Click + New to start.</div>';
+  }
+
+  function openConversation(id) {
+    activeConvId = id;
+    const complaints = DB.get('complaints') || [];
+    const idx = complaints.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    const c = complaints[idx];
+
+    // Mark as read by student
+    if (!c.readBy) c.readBy = [];
+    if (!c.readBy.includes(user.id)) {
+      c.readBy.push(user.id);
+      DB.set('complaints', complaints);
+    }
+
+    document.getElementById('thread-empty').style.display = 'none';
+    document.getElementById('thread-content').style.display = 'flex';
+    document.getElementById('thread-title').textContent = c.title;
+    document.getElementById('thread-sub').textContent = 'To: ' + (c.receiverName||'-') + ' (' + (c.receiverRole||'') + ')';
+
+    const sm = {open:'badge-danger','in-progress':'badge-warning',resolved:'badge-success',closed:'badge-secondary'};
+    document.getElementById('thread-status-badge').innerHTML = `<span class="badge ${sm[c.status]||'badge-secondary'}">${c.status}</span>`;
+
+    const allMsgs = [
+      {from:'student', fromName:'You', text:c.description, time:c.createdAt},
+      ...(c.messages||[]).map(m => ({
+        from: m.fromId === user.id ? 'student' : 'received',
+        fromName: m.fromId === user.id ? 'You' : (m.fromName||c.receiverName||'Teacher'),
+        text: m.text, time: m.time
+      }))
+    ];
+
+    document.getElementById('msg-thread').innerHTML = allMsgs.map(m => `
+      <div class="msg-bubble ${m.from==='student'?'sent':'received'}">
+        ${m.text}
+        <div class="msg-meta">${m.fromName} · ${formatDate(m.time)}</div>
+      </div>`).join('');
+
+    const isClosed = c.status==='resolved'||c.status==='closed';
+    document.getElementById('msg-input-row').style.display = isClosed ? 'none' : 'flex';
+    document.getElementById('msg-closed-note').style.display = isClosed ? 'block' : 'none';
+    document.getElementById('msg-closed-note').textContent = '✅ This conversation is ' + c.status + '.';
+
+    setTimeout(() => {
+      const t = document.getElementById('msg-thread');
+      if (t) t.scrollTop = t.scrollHeight;
+    }, 40);
+
+    updateUnreadBadge();
+    renderConversations();
+  }
+
+  function sendMessage() {
+    const text = document.getElementById('msg-input').value.trim();
+    if (!text || !activeConvId) return;
+    const complaints = DB.get('complaints') || [];
+    const idx = complaints.findIndex(c => c.id === activeConvId);
+    if (idx === -1) return;
+    if (!complaints[idx].messages) complaints[idx].messages = [];
+    complaints[idx].messages.push({fromId:user.id, fromName:user.name, text, time:new Date().toISOString()});
+    // Reset read — receiver hasn't read yet
+    complaints[idx].readBy = [user.id];
+    DB.set('complaints', complaints);
+    document.getElementById('msg-input').value = '';
+    openConversation(activeConvId);
+    toast('Message sent','success');
+  }
+
+  function populateMsgReceivers() {
+    const role = document.getElementById('msg-recv-role').value;
+    const sel = document.getElementById('msg-recv-id');
+    sel.innerHTML = '<option value="">-- Select --</option>';
+    if (role === 'teacher') {
+      (DB.get('teachers')||[]).forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.id; o.dataset.name = t.name; o.dataset.role = 'teacher';
+        o.textContent = t.name + ' – ' + t.subject;
+        sel.appendChild(o);
+      });
+    } else {
+      (DB.get('accounts')||[]).filter(a=>a.role==='admin'&&a.active).forEach(a => {
+        const o = document.createElement('option');
+        o.value = a.id; o.dataset.name = a.name; o.dataset.role = 'admin';
+        o.textContent = a.name;
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  function openNewMessage() {
+    document.getElementById('msg-recv-role').value = 'teacher';
+    document.getElementById('msg-subject').value = '';
+    document.getElementById('msg-body').value = '';
+    populateMsgReceivers();
+    openModal('new-msg-modal');
+  }
+
+  function sendNewMessage() {
+    const recvSel = document.getElementById('msg-recv-id');
+    const recvId = recvSel.value;
+    const recvOpt = recvSel.options[recvSel.selectedIndex];
+    const recvName = recvOpt ? (recvOpt.dataset.name || recvOpt.textContent) : '';
+    const recvRole = document.getElementById('msg-recv-role').value;
+    const subject = document.getElementById('msg-subject').value.trim();
+    const body = document.getElementById('msg-body').value.trim();
+
+    if (!recvId) { toast('Select a receiver','error'); return; }
+    if (!subject) { toast('Subject is required','error'); return; }
+    if (!body) { toast('Message is required','error'); return; }
+
+    // Find receiver account id
+    let receiverAccountId = recvId;
+    if (recvRole === 'teacher') {
+      const acc = (DB.get('accounts')||[]).find(a => a.linkedId===recvId && a.role==='teacher');
+      if (acc) receiverAccountId = acc.id;
+    }
+
+    const complaints = DB.get('complaints') || [];
+    const newConv = {
+      id: 'cmp_' + Date.now(),
+      title: subject,
+      description: body,
+      submittedBy: user.name,
+      submitterId: user.id,
+      submitterRole: 'student',
+      receiverRole: recvRole,
+      receiverRecordId: recvId,
+      receiverId: receiverAccountId,
+      receiverName: recvName,
+      priority: 'medium',
+      status: 'open',
+      createdAt: new Date().toISOString(),
+      messages: [],
+      readBy: [user.id]
+    };
+    complaints.push(newConv);
+    DB.set('complaints', complaints);
+
+    closeModal('new-msg-modal');
+    showSection('messages');
+    activeConvId = newConv.id;
+    renderConversations();
+    openConversation(newConv.id);
+    toast('Message sent to ' + recvName, 'success');
+  }
+
+  // Init
+  renderGrades();
+  updateUnreadBadge();
+</script>
+</body>
+</html>

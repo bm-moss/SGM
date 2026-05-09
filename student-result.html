@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Result – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .portal-layout{display:flex;min-height:100vh;}
+    .portal-sidebar{width:var(--sb-w,256px);background:var(--sidebar-bg,#1e1b4b);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;overflow-y:auto;}
+    .portal-main{margin-left:var(--sb-w,256px);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+  </style>
+</head>
+<body>
+<div class="portal-layout">
+  <aside class="portal-sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">Student Portal</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="s-avatar">S</div>
+      <div class="user-info">
+        <div class="user-name" id="s-name"></div>
+        <div class="user-role" id="s-class" style="font-size:11px;color:rgba(255,255,255,.4);"></div>
+      </div>
+    </div>
+    <nav id="s-nav" class="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;width:100%;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="portal-main">
+    <div class="topbar">
+      <div class="topbar-title">My Result</div>
+      <div class="topbar-actions">
+        <span id="portal-date" style="font-size:12px;color:rgba(255,255,255,.5);"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div id="locked-msg" class="hidden">
+        <div style="text-align:center;padding:60px 20px;">
+          <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">Result Access Not Enabled</div>
+          <div style="font-size:13px;color:var(--text-light);">Your administrator has not granted access to view your result.</div>
+        </div>
+      </div>
+
+      <div id="result-content">
+        <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;">
+          <select id="sem-filter" onchange="renderResult()" style="padding:8px 14px;border:1px solid var(--border);border-radius:var(--r-md);font-size:13px;background:#fff;">
+            <option value="">All Semesters</option>
+            <option value="Semester 1">Semester 1</option>
+            <option value="Semester 2">Semester 2</option>
+            <option value="Semester 3">Semester 3</option>
+          </select>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="stats-grid" id="result-stats"></div>
+
+        <!-- Grades table -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><h3>Grade Records</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Semester</th>
+                  <th style="text-align:center;">Score</th>
+                </tr>
+              </thead>
+              <tbody id="result-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Class ranking -->
+        <div class="card">
+          <div class="card-header"><h3>Class Rankings</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Rank</th><th>Student</th><th style="text-align:center;">Total</th><th style="text-align:center;">Average</th></tr></thead>
+              <tbody id="rank-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+<script src="js/student-common.js?v=2"></script>
+<script>
+  const ctx = initStudentPortal();
+  if (!ctx) throw new Error('init failed');
+  const { user, studentRecord } = ctx;
+  const allStudents = DB.get('students') || [];
+
+  // Fix any old records with wrong weighted scores
+  (function migrateGrades() {
+    const grades = DB.get('grades') || [];
+    let changed = false;
+    grades.forEach(g => {
+      const correct = Math.round(((parseFloat(g.midterm)||0) + (parseFloat(g.final)||0) + (parseFloat(g.assignment)||0)) * 10) / 10;
+      if (g.score !== correct) { g.score = correct; g.grade = GradeCalc.getGrade(correct); changed = true; }
+    });
+    if (changed) DB.set('grades', grades);
+  })();
+
+  buildStudentSidebar('result', user, studentRecord);
+  document.getElementById('portal-date').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+
+  // Show homeroom teacher info
+  const classes = DB.get('classes') || [];
+  const teachers = DB.get('teachers') || [];
+  const myClass = classes.find(c => c.name === studentRecord.class);
+  const homeroomTeacher = myClass ? teachers.find(t => t.id === myClass.classTeacher) : null;
+  if (homeroomTeacher) {
+    const info = document.createElement('div');
+    info.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--primary-light,#eef2ff);border-radius:var(--r-md,8px);margin-bottom:18px;font-size:13px;';
+    info.innerHTML = `<span style="font-size:18px;">👨‍🏫</span> <span><strong>Homeroom Teacher:</strong> ${homeroomTeacher.name}</span><span style="color:var(--text-muted);margin-left:8px;">· ${homeroomTeacher.subject}</span>`;
+    document.querySelector('.page-content').prepend(info);
+  }
+
+  // Strict permission check — always read fresh from DB, not cached session
+  const freshAccount = (DB.get('accounts') || []).find(a => a.id === user.id);
+  const canView = freshAccount && freshAccount.permissions && freshAccount.permissions.includes('result');
+  if (!canView) {
+    document.getElementById('locked-msg').classList.remove('hidden');
+    document.getElementById('result-content').style.display = 'none';
+  } else {
+    renderResult();
+  }
+
+  function renderResult() {
+    const sem = document.getElementById('sem-filter').value;
+    const allGrades = DB.get('grades') || [];
+    const myGrades = allGrades.filter(g => g.studentId === studentRecord.id && (!sem || g.term === sem));
+
+    const total    = myGrades.length ? myGrades.reduce((s, g) => s + g.score, 0) : 0;
+    const maxTotal = myGrades.length * 100;
+    const avg      = myGrades.length ? Math.round((total / myGrades.length) * 10) / 10 : 0;
+    const best     = myGrades.length ? myGrades.reduce((a, b) => a.score > b.score ? a : b) : null;
+
+    // Rank by total sum within class
+    const classStudents = allStudents.filter(s => s.class === studentRecord.class);
+    const ranked = classStudents.map(s => {
+      const sg = allGrades.filter(g => g.studentId === s.id && (!sem || g.term === sem));
+      const t = sg.reduce((acc, g) => acc + g.score, 0);
+      return { id: s.id, name: s.name, total: t, avg: sg.length ? Math.round((t / sg.length) * 10) / 10 : 0 };
+    }).sort((a, b) => b.total - a.total).map((s, i) => ({ ...s, rank: i + 1 }));
+
+    const myRank = ranked.find(r => r.id === studentRecord.id);
+
+    document.getElementById('result-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📊</div><div class="stat-info">
+        <div class="stat-value">${total}</div><div class="stat-label">Total Score</div>
+      </div></div>
+      <div class="stat-card"><div class="stat-icon orange">📐</div><div class="stat-info">
+        <div class="stat-value">${avg}</div><div class="stat-label">Average per Subject</div>
+      </div></div>
+      <div class="stat-card"><div class="stat-icon green">🏆</div><div class="stat-info">
+        <div class="stat-value">${myRank ? '#' + myRank.rank : '—'}</div><div class="stat-label">Class Rank</div>
+      </div></div>
+      <div class="stat-card"><div class="stat-icon red">⭐</div><div class="stat-info">
+        <div class="stat-value" style="font-size:15px;">${best ? best.subject : '—'}</div>
+        <div class="stat-label">Best Subject${best ? ' (' + best.score + ')' : ''}</div>
+      </div></div>
+    `;
+
+    // Get weights for this class+semester
+    const wKey = 'weights_' + studentRecord.class + '_' + (sem || '');
+    const w = DB.get(wKey) || { midterm: 30, final: 50, assignment: 20 };
+
+    document.getElementById('result-table').innerHTML = myGrades.length
+      ? myGrades.map(g => {
+          const scColor = g.score >= 80 ? '#15803d' : g.score >= 60 ? '#b45309' : '#b91c1c';
+          return `<tr>
+            <td><strong>${g.subject}</strong></td>
+            <td>${g.term}</td>
+            <td style="text-align:center;font-weight:700;color:${scColor};">${g.score}</td>
+          </tr>`;
+        }).join('')
+        + `<tr style="background:var(--surface2);border-top:2px solid var(--border);">
+            <td colspan="2" style="text-align:right;font-weight:700;padding-right:16px;">Total (${myGrades.length} subjects)</td>
+            <td style="text-align:center;font-weight:800;color:var(--primary);font-size:15px;">${total}/${maxTotal}</td>
+          </tr>
+          <tr style="background:var(--surface2);">
+            <td colspan="2" style="text-align:right;font-weight:700;padding-right:16px;">Average per subject</td>
+            <td style="text-align:center;font-weight:800;color:var(--primary);font-size:15px;">${avg}</td>
+          </tr>`
+      : '<tr><td colspan="3" style="text-align:center;color:var(--text-light);padding:32px;">No records for this semester.</td></tr>';
+
+    document.getElementById('rank-table').innerHTML = ranked.slice(0, 15).map(r => {
+      const isSelf = r.id === studentRecord.id;
+      return `<tr style="${isSelf ? 'background:#eef2ff;font-weight:700;' : ''}">
+        <td>${r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':'#'+r.rank}${isSelf?' <span style="color:var(--primary);font-size:11px;">← You</span>':''}</td>
+        <td>${r.name}</td>
+        <td style="text-align:center;font-weight:600;">${r.total}</td>
+        <td style="text-align:center;font-weight:600;">${r.avg}</td>
+      </tr>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>

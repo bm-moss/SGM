@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaints – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Complaints & Issues</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openAddModal()">+ Submit Complaint</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="stats-grid" id="cmp-stats"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3 id="table-heading">Complaints</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <select id="f-status" onchange="renderTable()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="in-progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+            <select id="f-priority" onchange="renderTable()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="">All Priorities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <div class="search-input-wrap" style="min-width:200px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search" placeholder="Search..." oninput="renderTable()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Title</th><th>From</th><th>To (Receiver)</th><th>Priority</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="cmp-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit / Edit Complaint Modal -->
+<div class="modal-overlay" id="cmp-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3 id="cmp-modal-title">Submit Complaint</h3>
+      <button class="modal-close" onclick="closeModal('cmp-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cmp-edit-id" />
+
+      <!-- Receiver selection -->
+      <div style="padding:14px;background:#e8f0fe;border-radius:10px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;color:#1557b0;margin-bottom:10px;">📬 Send To</div>
+        <div class="form-grid">
+          <div class="form-group" style="margin:0;">
+            <label>Receiver Role</label>
+            <select id="c-recv-role" onchange="populateReceivers()">
+              <option value="admin">Admin</option>
+              <option value="teacher">Teacher</option>
+              <option value="staff">Staff</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Receiver Name *</label>
+            <select id="c-recv-id">
+              <option value="">-- Select --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Subject / Title *</label>
+        <input type="text" id="c-title" placeholder="Brief title of the issue" />
+      </div>
+      <div class="form-group">
+        <label>Message / Description *</label>
+        <textarea id="c-desc" placeholder="Describe the issue in detail..." style="min-height:110px;"></textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="c-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-group" id="status-field" style="display:none;">
+          <label>Status</label>
+          <select id="c-status">
+            <option value="open">Open</option>
+            <option value="in-progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('cmp-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveComplaint()">Send Complaint</button>
+    </div>
+  </div>
+</div>
+
+<!-- View / Reply Modal -->
+<div class="modal-overlay" id="view-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3 id="view-modal-title">Complaint</h3>
+      <button class="modal-close" onclick="closeModal('view-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="view-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('view-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('complaints')) window.location.href = 'dashboard.html';
+  buildSidebar('complaints');
+
+  const isAdmin = Auth.isAdmin();
+  const isTeacher = Auth.isTeacher();
+
+  function getComplaints() { return DB.get('complaints') || []; }
+
+  // ===== RECEIVER DROPDOWN =====
+  function populateReceivers() {
+    const role = document.getElementById('c-recv-role').value;
+    const sel = document.getElementById('c-recv-id');
+    sel.innerHTML = '<option value="">-- Select --</option>';
+
+    let people = [];
+    if (role === 'admin') {
+      people = (DB.get('accounts') || []).filter(a => a.role === 'admin' && a.active);
+      people.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.dataset.name = p.name; o.dataset.role = 'admin';
+        o.textContent = p.name;
+        sel.appendChild(o);
+      });
+    } else if (role === 'teacher') {
+      people = DB.get('teachers') || [];
+      people.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.dataset.name = p.name; o.dataset.role = 'teacher';
+        o.textContent = p.name + ' – ' + p.subject;
+        sel.appendChild(o);
+      });
+    } else if (role === 'staff') {
+      people = DB.get('staff') || [];
+      people.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.dataset.name = p.name; o.dataset.role = 'staff';
+        o.textContent = p.name + ' (' + p.role + ')';
+        sel.appendChild(o);
+      });
+    }
+  }
+
+  // ===== VISIBILITY: who can see a complaint =====
+  // A complaint is visible to: admin, the submitter, and the receiver
+  function canSeeComplaint(c) {
+    if (isAdmin) return true;
+    if (c.submitterId === user.id) return true;
+    if (c.receiverId === user.id) return true;
+    // Teacher linked record match
+    if (isTeacher && c.receiverRecordId === user.linkedId && c.receiverRole === 'teacher') return true;
+    return false;
+  }
+
+  // ===== STATS =====
+  function renderStats() {
+    const visible = getComplaints().filter(canSeeComplaint);
+    const open = visible.filter(x => x.status === 'open').length;
+    const inprog = visible.filter(x => x.status === 'in-progress').length;
+    const resolved = visible.filter(x => x.status === 'resolved').length;
+    const unread = visible.filter(x => !x.readBy || !x.readBy.includes(user.id)).length;
+
+    document.getElementById('cmp-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📣</div><div class="stat-info"><div class="stat-value">${visible.length}</div><div class="stat-label">Total</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">🔴</div><div class="stat-info"><div class="stat-value">${open}</div><div class="stat-label">Open</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">🔄</div><div class="stat-info"><div class="stat-value">${inprog}</div><div class="stat-label">In Progress</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${resolved}</div><div class="stat-label">Resolved</div></div></div>
+    `;
+
+    document.getElementById('table-heading').textContent =
+      isAdmin ? 'All Complaints' : 'My Complaints & Received';
+  }
+
+  function priorityBadge(p) {
+    return `<span class="badge badge-${p==='high'?'danger':p==='medium'?'warning':'secondary'}">${p}</span>`;
+  }
+  function statusBadge(s) {
+    const map = { open:'badge-danger','in-progress':'badge-warning',resolved:'badge-success',closed:'badge-secondary' };
+    return `<span class="badge ${map[s]||'badge-secondary'}">${s}</span>`;
+  }
+
+  // ===== TABLE =====
+  function renderTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const fs = document.getElementById('f-status').value;
+    const fp = document.getElementById('f-priority').value;
+
+    const complaints = getComplaints()
+      .filter(canSeeComplaint)
+      .filter(c =>
+        (!fs || c.status === fs) &&
+        (!fp || c.priority === fp) &&
+        (!q || (c.title||'').toLowerCase().includes(q) || (c.submittedBy||'').toLowerCase().includes(q) || (c.receiverName||'').toLowerCase().includes(q))
+      )
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    document.getElementById('cmp-table').innerHTML = complaints.length ? complaints.map((c, i) => {
+      const isUnread = !c.readBy || !c.readBy.includes(user.id);
+      const isMine = c.submitterId === user.id;
+      return `<tr style="${isUnread && !isMine ? 'background:#fff8e1;font-weight:600;' : ''}">
+        <td>${i+1}</td>
+        <td>
+          <strong>${c.title}</strong>
+          ${isUnread && !isMine ? '<span style="width:8px;height:8px;border-radius:50%;background:#1a73e8;display:inline-block;margin-left:6px;vertical-align:middle;"></span>' : ''}
+        </td>
+        <td>
+          <div style="font-weight:600;">${c.submittedBy||'-'}</div>
+          <span class="badge badge-secondary" style="font-size:11px;">${c.submitterRole||''}</span>
+        </td>
+        <td>
+          <div style="font-weight:600;">${c.receiverName||'-'}</div>
+          <span class="badge badge-info" style="font-size:11px;">${c.receiverRole||''}</span>
+        </td>
+        <td>${priorityBadge(c.priority)}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td style="font-size:13px;">${formatDate(c.createdAt)}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="viewComplaint('${c.id}')">💬 View</button>
+          ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteComplaint('${c.id}')">🗑️</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="8" style="text-align:center;color:#5f6368;padding:32px;">No complaints found.</td></tr>';
+  }
+
+  // ===== VIEW / REPLY =====
+  function viewComplaint(id) {
+    const complaints = DB.get('complaints') || [];
+    const idx = complaints.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    const c = complaints[idx];
+
+    // Mark as read
+    if (!c.readBy) c.readBy = [];
+    if (!c.readBy.includes(user.id)) {
+      c.readBy.push(user.id);
+      DB.set('complaints', complaints);
+    }
+
+    const msgs = c.messages || [];
+    const allMsgs = [{ from: c.submitterId, fromName: c.submittedBy, text: c.description, time: c.createdAt }, ...msgs];
+
+    const canReply = (isAdmin || isTeacher || c.receiverId === user.id) &&
+                     c.status !== 'resolved' && c.status !== 'closed';
+
+    document.getElementById('view-modal-title').textContent = c.title;
+    document.getElementById('view-modal-body').innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+        ${priorityBadge(c.priority)} ${statusBadge(c.status)}
+        <span style="font-size:12px;color:#5f6368;margin-left:auto;">${formatDate(c.createdAt)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="padding:10px 14px;background:#f8f9fa;border-radius:8px;">
+          <div style="font-size:11px;color:#5f6368;margin-bottom:3px;">FROM</div>
+          <div style="font-weight:700;">${c.submittedBy}</div>
+          <div style="font-size:12px;color:#5f6368;">${c.submitterRole}</div>
+        </div>
+        <div style="padding:10px 14px;background:#e8f0fe;border-radius:8px;">
+          <div style="font-size:11px;color:#5f6368;margin-bottom:3px;">TO</div>
+          <div style="font-weight:700;">${c.receiverName||'-'}</div>
+          <div style="font-size:12px;color:#5f6368;">${c.receiverRole||''}</div>
+        </div>
+      </div>
+
+      <!-- Thread -->
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto;padding:12px;background:#f1f5f9;border-radius:10px;margin-bottom:4px;" id="view-thread">
+        ${allMsgs.map(m => {
+          const isMine = m.from === user.id || m.fromId === user.id;
+          return `<div style="
+            max-width:78%;padding:10px 14px;border-radius:14px;line-height:1.5;font-size:14px;
+            background:${isMine ? 'var(--primary)' : '#ffffff'};
+            color:${isMine ? 'white' : 'var(--text)'};
+            align-self:${isMine ? 'flex-end' : 'flex-start'};
+            border-bottom-${isMine ? 'right' : 'left'}-radius:4px;
+            box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            ${m.text}
+            <div style="font-size:11px;margin-top:4px;opacity:0.7;text-align:${isMine?'right':'left'};">
+              ${m.fromName||m.from} · ${formatDate(m.time)}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      ${canReply ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        ${isAdmin || isTeacher ? `
+        <select id="reply-status" style="padding:7px 12px;border:2px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px;width:100%;">
+          <option value="open" ${c.status==='open'?'selected':''}>Keep Open</option>
+          <option value="in-progress" ${c.status==='in-progress'?'selected':''}>Mark In Progress</option>
+          <option value="resolved">Mark Resolved</option>
+          <option value="closed">Close</option>
+        </select>` : ''}
+        <div style="display:flex;gap:10px;">
+          <input type="text" id="reply-text" placeholder="Type your reply..."
+            onkeydown="if(event.key==='Enter')sendReply('${c.id}')"
+            style="flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:24px;font-size:14px;" />
+          <button class="btn btn-primary" onclick="sendReply('${c.id}')" style="border-radius:24px;padding:10px 18px;">Send ➤</button>
+        </div>
+      </div>` : `
+      <div style="text-align:center;padding:12px;background:#f8f9fa;border-radius:8px;color:#5f6368;font-size:13px;margin-top:12px;">
+        ${c.status==='resolved'||c.status==='closed' ? '✅ This complaint is '+c.status+'.' : 'View only.'}
+      </div>`}
+    `;
+
+    setTimeout(() => {
+      const t = document.getElementById('view-thread');
+      if (t) t.scrollTop = t.scrollHeight;
+    }, 40);
+
+    openModal('view-modal');
+    renderStats(); renderTable();
+  }
+
+  function sendReply(id) {
+    const text = (document.getElementById('reply-text').value || '').trim();
+    if (!text) { toast('Type a reply first', 'error'); return; }
+
+    const complaints = DB.get('complaints') || [];
+    const idx = complaints.findIndex(c => c.id === id);
+    if (idx === -1) return;
+
+    if (!complaints[idx].messages) complaints[idx].messages = [];
+    complaints[idx].messages.push({
+      from: user.id, fromId: user.id, fromName: user.name,
+      text, time: new Date().toISOString()
+    });
+
+    const statusEl = document.getElementById('reply-status');
+    if (statusEl) complaints[idx].status = statusEl.value;
+
+    // Reset read status — only sender has read it
+    complaints[idx].readBy = [user.id];
+    DB.set('complaints', complaints);
+
+    toast('Reply sent', 'success');
+    closeModal('view-modal');
+    renderStats(); renderTable();
+  }
+
+  // ===== ADD COMPLAINT =====
+  function openAddModal() {
+    document.getElementById('cmp-modal-title').textContent = 'Submit Complaint';
+    document.getElementById('cmp-edit-id').value = '';
+    document.getElementById('c-title').value = '';
+    document.getElementById('c-desc').value = '';
+    document.getElementById('c-priority').value = 'medium';
+    document.getElementById('c-status').value = 'open';
+    document.getElementById('c-recv-role').value = isTeacher ? 'admin' : 'teacher';
+    document.getElementById('status-field').style.display = isAdmin ? '' : 'none';
+    populateReceivers();
+    openModal('cmp-modal');
+  }
+
+  function saveComplaint() {
+    const title = document.getElementById('c-title').value.trim();
+    const desc = document.getElementById('c-desc').value.trim();
+    const recvSel = document.getElementById('c-recv-id');
+    const recvId = recvSel.value;
+    const recvOpt = recvSel.options[recvSel.selectedIndex];
+    const recvName = recvOpt ? recvOpt.dataset.name || recvOpt.textContent : '';
+    const recvRole = document.getElementById('c-recv-role').value;
+
+    if (!title) { toast('Title is required', 'error'); return; }
+    if (!desc) { toast('Message is required', 'error'); return; }
+    if (!recvId) { toast('Please select a receiver', 'error'); return; }
+
+    // Find receiver account id for visibility
+    let receiverAccountId = recvId;
+    if (recvRole === 'teacher') {
+      const acc = (DB.get('accounts') || []).find(a => a.linkedId === recvId && a.role === 'teacher');
+      if (acc) receiverAccountId = acc.id;
+    } else if (recvRole === 'staff') {
+      const acc = (DB.get('accounts') || []).find(a => a.linkedId === recvId && a.role === 'staff');
+      if (acc) receiverAccountId = acc.id;
+    }
+
+    const complaints = DB.get('complaints') || [];
+    const editId = document.getElementById('cmp-edit-id').value;
+
+    const record = {
+      title, description: desc,
+      priority: document.getElementById('c-priority').value,
+      status: isAdmin ? document.getElementById('c-status').value : 'open',
+      receiverRole: recvRole,
+      receiverRecordId: recvId,
+      receiverId: receiverAccountId,
+      receiverName: recvName,
+      messages: [],
+      readBy: [user.id]
+    };
+
+    if (editId) {
+      const idx = complaints.findIndex(c => c.id === editId);
+      complaints[idx] = { ...complaints[idx], ...record };
+      toast('Updated', 'success');
+    } else {
+      complaints.push({
+        id: 'cmp_' + Date.now(), ...record,
+        submittedBy: user.name,
+        submitterId: user.id,
+        submitterRole: user.role,
+        createdAt: new Date().toISOString()
+      });
+      toast('Complaint sent', 'success');
+    }
+    DB.set('complaints', complaints);
+    closeModal('cmp-modal');
+    renderStats(); renderTable();
+  }
+
+  function deleteComplaint(id) {
+    confirmDelete('Delete this complaint permanently?', () => {
+      DB.set('complaints', getComplaints().filter(c => c.id !== id));
+      toast('Deleted'); renderStats(); renderTable();
+    });
+  }
+
+  populateReceivers();
+  renderStats();
+  renderTable();
+</script>
+</body>
+</html>

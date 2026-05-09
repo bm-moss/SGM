@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Attendance – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .portal-layout{display:flex;min-height:100vh;}
+    .portal-sidebar{width:var(--sb-w,256px);background:var(--sidebar-bg,#1e1b4b);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;overflow-y:auto;}
+    .portal-main{margin-left:var(--sb-w,256px);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+  </style>
+</head>
+<body>
+<div class="portal-layout">
+  <aside class="portal-sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">Student Portal</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="s-avatar">S</div>
+      <div class="user-info">
+        <div class="user-name" id="s-name"></div>
+        <div class="user-role" id="s-class" style="font-size:11px;color:rgba(255,255,255,.4);"></div>
+      </div>
+    </div>
+    <nav id="s-nav" class="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;width:100%;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="portal-main">
+    <div class="topbar">
+      <div class="topbar-title">My Attendance</div>
+    </div>
+
+    <div class="page-content">
+      <div class="stats-grid" id="att-stats"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Attendance History</h3>
+          <select id="att-filter" onchange="renderAttendance()" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:13px;">
+            <option value="">All</option>
+            <option value="present">Present</option>
+            <option value="absent">Absent</option>
+            <option value="late">Late</option>
+          </select>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead>
+            <tbody id="att-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student-common.js"></script>
+<script>
+  const ctx = initStudentPortal();
+  if (!ctx) throw new Error('init failed');
+  const { user, studentRecord } = ctx;
+
+  buildStudentSidebar('attendance', user, studentRecord);
+  renderAttendance();
+
+  function renderAttendance() {
+    const filter = document.getElementById('att-filter').value;
+    const allAtt = (DB.get('attendance') || []).filter(a => a.type === 'student' && a.personId === studentRecord.id);
+    const filtered = filter ? allAtt.filter(a => a.status === filter) : allAtt;
+    const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+
+    const present = allAtt.filter(a => a.status === 'present').length;
+    const absent  = allAtt.filter(a => a.status === 'absent').length;
+    const late    = allAtt.filter(a => a.status === 'late').length;
+    const total   = allAtt.length;
+    const rate    = total ? Math.round((present / total) * 100) : 0;
+    const rateColor = rate >= 80 ? '#15803d' : rate >= 60 ? '#b45309' : '#b91c1c';
+
+    document.getElementById('att-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="stat-value">${total}</div><div class="stat-label">Total Days</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${present}</div><div class="stat-label">Present</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><div class="stat-value">${absent}</div><div class="stat-label">Absent</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">⏰</div><div class="stat-info"><div class="stat-value">${late}</div><div class="stat-label">Late</div></div></div>
+      <div class="stat-card"><div class="stat-icon blue">📊</div><div class="stat-info"><div class="stat-value" style="color:${rateColor};">${rate}%</div><div class="stat-label">Attendance Rate</div></div></div>
+    `;
+
+    const sm = { present: 'badge-success', absent: 'badge-danger', late: 'badge-warning' };
+    document.getElementById('att-table').innerHTML = sorted.length
+      ? sorted.map(a => `<tr>
+          <td>${formatDate(a.date)}</td>
+          <td><span class="badge ${sm[a.status] || 'badge-secondary'}">${a.status}</span></td>
+          <td style="color:var(--text-muted);font-size:13px;">${a.note || '—'}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--text-light);padding:32px;">No attendance records found.</td></tr>';
+  }
+</script>
+</body>
+</html>

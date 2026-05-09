@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accounts – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Account Management</div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="downloadAllData()" title="Download all data as JSON">⬇️ Export Data</button>
+        <button class="btn btn-outline" id="result-toggle-btn" onclick="toggleResultForAll()" title="Unlock or lock result access for all students"></button>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Create Account</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="alert alert-info">
+        🔐 Only admins can access this page. Create accounts and assign per-module permissions to control what each user can see and do.
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>System Accounts</h3>
+          <div class="search-input-wrap" style="min-width:220px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search" placeholder="Search accounts..." oninput="renderTable()" />
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Username</th><th>Email</th>
+                <th>Role</th><th>Permissions</th><th>Status</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Account Modal -->
+<div class="modal-overlay" id="account-modal">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header">
+      <h3 id="modal-title">Create Account</h3>
+      <button class="modal-close" onclick="closeModal('account-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Full Name *</label>
+          <input type="text" id="f-name" placeholder="Full name" />
+        </div>
+        <div class="form-group">
+          <label>Username *</label>
+          <input type="text" id="f-username" placeholder="login username" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-email" placeholder="email@school.edu" />
+        </div>
+        <div class="form-group">
+          <label>Password <span id="pw-hint" style="font-weight:400;color:#5f6368;">(required for new)</span></label>
+          <input type="password" id="f-password" placeholder="Enter password" />
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <div style="display:flex;gap:8px;">
+            <select id="f-role" onchange="onRoleChange()" style="flex:1;">
+              <option value="admin">Admin</option>
+              <option value="teacher">Teacher</option>
+              <option value="staff">Staff</option>
+              <option value="student">Student</option>
+              <option value="viewer">Viewer</option>
+            </select>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addCustomRole()" title="Add custom role">+ Role</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Linked record -->
+      <div id="linked-section" class="hidden" style="margin-bottom:16px;">
+        <div class="form-group" id="linked-student-wrap" style="display:none;">
+          <label>Linked Student Record</label>
+          <select id="f-linked-student">
+            <option value="">-- Select Student --</option>
+          </select>
+        </div>
+        <div class="form-group" id="linked-teacher-wrap" style="display:none;">
+          <label>Linked Teacher Record</label>
+          <select id="f-linked-teacher">
+            <option value="">-- Select Teacher --</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Permissions -->
+      <div id="permissions-section" style="margin-top:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:700;color:#5f6368;text-transform:uppercase;letter-spacing:0.5px;">Module Permissions</span>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPerms(true)">Select All</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="selectAllPerms(false)">Clear All</button>
+          </div>
+        </div>
+        <div class="permissions-grid" id="permissions-grid"></div>
+        <div id="admin-note" class="hidden" style="margin-top:10px;padding:10px 14px;background:#e8f0fe;border-radius:8px;font-size:13px;color:#1557b0;">
+          ℹ️ Admin role automatically gets full access to all modules.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('account-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAccount()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Permissions Modal -->
+<div class="modal-overlay" id="perms-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>Account Permissions</h3>
+      <button class="modal-close" onclick="closeModal('perms-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="perms-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('perms-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.isAdmin()) {
+    // Non-admins cannot access account management at all
+    window.location.href = 'dashboard.html';
+  }
+  buildSidebar('accounts');
+
+  const ALL_PERMISSIONS = [
+    { key: 'dashboard',    label: '🏠 Dashboard' },
+    { key: 'teachers',     label: '👨‍🏫 Teachers' },
+    { key: 'students',     label: '🎓 Students' },
+    { key: 'grades',       label: '📊 Grades' },
+    { key: 'attendance',   label: '📅 Attendance' },
+    { key: 'staff',        label: '👥 Staff' },
+    { key: 'departments',  label: '🏢 Departments' },
+    { key: 'complaints',   label: '📣 Complaints' },
+    { key: 'reports',      label: '📋 Reports' },
+    { key: 'accounts',     label: '🔐 Accounts' },
+    { key: 'result',       label: '📝 My Result (Student)' }
+  ];
+
+  const ROLE_DEFAULTS = {
+    admin:   ALL_PERMISSIONS.map(p => p.key),
+    teacher: ['dashboard','students','grades','attendance','complaints'],
+    staff:   ['dashboard','students','attendance'],
+    student: ['student_portal', 'result'],   // students only access their own portal — no other pages
+    viewer:  ['dashboard']
+  };
+
+  function getAccounts() { return DB.get('accounts') || []; }
+
+  function renderPermissionsGrid(selected) {
+    document.getElementById('permissions-grid').innerHTML = ALL_PERMISSIONS.map(p => {
+      const checked = selected.includes(p.key);
+      return `
+        <label class="permission-item ${checked ? 'checked' : ''}" id="plbl-${p.key}">
+          <input type="checkbox" value="${p.key}" ${checked ? 'checked' : ''}
+            onchange="document.getElementById('plbl-${p.key}').classList.toggle('checked',this.checked)" />
+          ${p.label}
+        </label>`;
+    }).join('');
+  }
+
+  function getSelectedPermissions() {
+    return [...document.querySelectorAll('#permissions-grid input[type=checkbox]:checked')].map(c => c.value);
+  }
+
+  function selectAllPerms(val) {
+    document.querySelectorAll('#permissions-grid input[type=checkbox]').forEach(cb => {
+      cb.checked = val;
+      document.getElementById('plbl-' + cb.value).classList.toggle('checked', val);
+    });
+  }
+
+  function addCustomRole() {
+    const role = prompt('Enter new role name (e.g. "librarian", "counselor"):');
+    if (!role || !role.trim()) return;
+    const val = role.trim().toLowerCase().replace(/\s+/g, '_');
+    const sel = document.getElementById('f-role');
+    // Avoid duplicates
+    if ([...sel.options].some(o => o.value === val)) {
+      toast('Role already exists', 'error'); return;
+    }
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = role.trim();
+    sel.appendChild(opt);
+    sel.value = val;
+    // Save custom roles to DB so they persist
+    const custom = DB.get('custom_roles') || [];
+    if (!custom.includes(val)) { custom.push(val); DB.set('custom_roles', custom); }
+    onRoleChange();
+    toast('Role "' + role.trim() + '" added', 'success');
+  }
+
+  function loadCustomRoles() {
+    const custom = DB.get('custom_roles') || [];
+    const sel = document.getElementById('f-role');
+    custom.forEach(val => {
+      if (![...sel.options].some(o => o.value === val)) {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val.replace(/_/g, ' ');
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  function downloadAllData() {
+    const keys = ['accounts','teachers','students','staff','grades','attendance','complaints','departments','classes'];
+    const data = {};
+    keys.forEach(k => { data[k] = DB.get(k) || []; });
+    data._exported = new Date().toISOString();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'school_data_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Data exported successfully', 'success');
+  }
+
+  function onRoleChange() {
+    const role = document.getElementById('f-role').value;
+    const isAdminRole = role === 'admin';
+    document.getElementById('permissions-grid').style.pointerEvents = isAdminRole ? 'none' : 'auto';
+    document.getElementById('permissions-grid').style.opacity = isAdminRole ? '0.5' : '1';
+    document.getElementById('admin-note').classList.toggle('hidden', !isAdminRole);
+    renderPermissionsGrid(ROLE_DEFAULTS[role] || ['dashboard']);
+
+    // Show linked record selector for student/teacher
+    const linkedSection = document.getElementById('linked-section');
+    const stuWrap = document.getElementById('linked-student-wrap');
+    const tchWrap = document.getElementById('linked-teacher-wrap');
+
+    if (role === 'student') {
+      linkedSection.classList.remove('hidden');
+      stuWrap.style.display = ''; tchWrap.style.display = 'none';
+      // Student role: lock permissions — they only get student_portal
+      document.getElementById('permissions-grid').style.pointerEvents = 'none';
+      document.getElementById('permissions-grid').style.opacity = '0.5';
+      document.getElementById('admin-note').classList.remove('hidden');
+      document.getElementById('admin-note').textContent = '🎓 Students get "My Result" permission by default. Uncheck it to block a student from viewing their result.';
+      renderPermissionsGrid(['student_portal', 'result']);
+      // Populate student select
+      const sel = document.getElementById('f-linked-student');
+      const students = DB.get('students') || [];
+      sel.innerHTML = '<option value="">-- Select Student --</option>';
+      students.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = s.name + ' (' + s.studentId + ' · ' + s.class + ')';
+        sel.appendChild(o);
+      });
+    } else if (role === 'teacher') {
+      linkedSection.classList.remove('hidden');
+      stuWrap.style.display = 'none'; tchWrap.style.display = '';
+      // Populate teacher select
+      const sel = document.getElementById('f-linked-teacher');
+      const teachers = DB.get('teachers') || [];
+      sel.innerHTML = '<option value="">-- Select Teacher --</option>';
+      teachers.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.id; o.textContent = t.name + ' (' + t.subject + ')';
+        sel.appendChild(o);
+      });
+    } else {
+      linkedSection.classList.add('hidden');
+      stuWrap.style.display = 'none'; tchWrap.style.display = 'none';
+    }
+  }
+
+  function renderTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const accounts = getAccounts().filter(a =>
+      !q || a.name.toLowerCase().includes(q) || a.username.toLowerCase().includes(q) || (a.role || '').includes(q)
+    );
+
+    document.getElementById('accounts-table').innerHTML = accounts.length ? accounts.map((a, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;">
+              ${a.name.charAt(0).toUpperCase()}
+            </div>
+            <strong>${a.name}</strong>
+          </div>
+        </td>
+        <td style="font-weight:600;color:var(--text);">${a.username}</td>
+        <td>${a.email || '-'}</td>
+        <td><span class="badge badge-${a.role === 'admin' ? 'danger' : a.role === 'teacher' ? 'info' : 'secondary'}">${a.role}</span></td>
+        <td>
+          ${a.role === 'admin'
+            ? '<span class="badge badge-danger">All Access</span>'
+            : `<button class="btn btn-outline btn-sm" onclick="viewPerms('${a.id}')">${(a.permissions||[]).length} modules</button>`}
+        </td>
+        <td><span class="badge badge-${a.active ? 'success' : 'secondary'}">${a.active ? 'Active' : 'Inactive'}</span></td>
+        <td style="font-size:13px;">${formatDate(a.createdAt)}</td>
+        <td>
+          ${a.id !== user.id
+            ? `<button class="btn btn-warning btn-sm" onclick="editAccount('${a.id}')">✏️ Edit</button>
+               <button class="btn btn-danger btn-sm" onclick="deleteAccount('${a.id}')">🗑️</button>`
+            : '<span class="badge badge-info">You</span>'}
+        </td>
+      </tr>
+    `).join('') : '<tr><td colspan="9" style="text-align:center;color:#5f6368;padding:32px;">No accounts found.</td></tr>';
+  }
+
+  function viewPerms(id) {
+    const a = getAccounts().find(a => a.id === id);
+    if (!a) return;
+    const perms = a.permissions || [];
+    document.getElementById('perms-modal-body').innerHTML = `
+      <p style="margin-bottom:16px;color:#5f6368;">Permissions for <strong>${a.name}</strong> (${a.role})</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${ALL_PERMISSIONS.map(p => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${perms.includes(p.key)?'#e6f4ea':'#f8f9fa'};">
+            <span>${perms.includes(p.key)?'✅':'❌'}</span>
+            <span style="font-weight:${perms.includes(p.key)?'600':'400'};color:${perms.includes(p.key)?'#137333':'#5f6368'};">${p.label}</span>
+          </div>`).join('')}
+      </div>`;
+    openModal('perms-modal');
+  }
+
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Create Account';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-username').value = '';
+    document.getElementById('f-email').value = '';
+    document.getElementById('f-password').value = '';
+    document.getElementById('f-status').value = 'true';
+    document.getElementById('pw-hint').textContent = '(required for new)';
+    // Reset linked section
+    document.getElementById('linked-section').classList.add('hidden');
+    document.getElementById('linked-student-wrap').style.display = 'none';
+    document.getElementById('linked-teacher-wrap').style.display = 'none';
+    loadCustomRoles();
+    document.getElementById('f-role').value = 'teacher';
+    // Trigger role change to set permissions + linked section correctly
+    onRoleChange();
+    openModal('account-modal');
+  }
+
+  function editAccount(id) {
+    const a = getAccounts().find(a => a.id === id);
+    if (!a) return;
+    document.getElementById('modal-title').textContent = 'Edit Account';
+    document.getElementById('edit-id').value = a.id;
+    document.getElementById('f-name').value = a.name;
+    document.getElementById('f-username').value = a.username;
+    document.getElementById('f-email').value = a.email || '';
+    document.getElementById('f-password').value = '';
+    document.getElementById('f-role').value = a.role;
+    document.getElementById('f-status').value = String(a.active);
+    document.getElementById('pw-hint').textContent = '(leave blank to keep current)';
+
+    const isAdminRole = a.role === 'admin';
+    document.getElementById('permissions-grid').style.pointerEvents = isAdminRole ? 'none' : 'auto';
+    document.getElementById('permissions-grid').style.opacity = isAdminRole ? '0.5' : '1';
+    document.getElementById('admin-note').classList.toggle('hidden', !isAdminRole);
+    renderPermissionsGrid(a.permissions || ROLE_DEFAULTS[a.role] || ['dashboard']);
+    // Trigger role change to show linked selects, then set value
+    onRoleChange();
+    if (a.role === 'student' && a.linkedId) document.getElementById('f-linked-student').value = a.linkedId;
+    if (a.role === 'teacher' && a.linkedId) document.getElementById('f-linked-teacher').value = a.linkedId;
+    openModal('account-modal');
+  }
+
+  function saveAccount() {
+    try {
+    const name = document.getElementById('f-name').value.trim();
+    const username = document.getElementById('f-username').value.trim();
+    const password = document.getElementById('f-password').value;
+    const editId = document.getElementById('edit-id').value;
+
+    if (!name) { toast('Full name is required', 'error'); return; }
+    if (!username) { toast('Username is required', 'error'); return; }
+    if (!editId && !password) { toast('Password is required for new accounts', 'error'); return; }
+
+    const accounts = getAccounts();
+
+    // Check username uniqueness
+    if (accounts.find(a => a.username === username && a.id !== editId)) {
+      toast('Username already taken', 'error'); return;
+    }
+
+    const role = document.getElementById('f-role').value;
+    // Students always get result permission by default
+    const permissions = role === 'admin'
+      ? ALL_PERMISSIONS.map(p => p.key)
+      : role === 'student'
+        ? [...new Set([...getSelectedPermissions(), 'student_portal', 'result'])]
+        : getSelectedPermissions();
+
+    // Get linkedId for student/teacher roles
+    let linkedId = '';
+    if (role === 'student') linkedId = document.getElementById('f-linked-student').value;
+    else if (role === 'teacher') linkedId = document.getElementById('f-linked-teacher').value;
+
+    if (editId) {
+      const idx = accounts.findIndex(a => a.id === editId);
+      if (idx === -1) { toast('Account not found', 'error'); return; }
+      accounts[idx] = {
+        ...accounts[idx],
+        name, username,
+        email: document.getElementById('f-email').value.trim(),
+        role, permissions,
+        active: document.getElementById('f-status').value === 'true',
+        ...(linkedId ? { linkedId } : {}),
+        ...(password ? { password } : {})
+      };
+      toast('Account updated', 'success');
+    } else {
+      const newId = 'acc_' + Date.now();
+      accounts.push({
+        id: newId,
+        name, username, password,
+        email: document.getElementById('f-email').value.trim(),
+        role, permissions,
+        active: document.getElementById('f-status').value === 'true',
+        ...(linkedId ? { linkedId } : {}),
+        createdAt: new Date().toISOString()
+      });
+      toast('Account created', 'success');
+    }
+
+    DB.set('accounts', accounts);
+    closeModal('account-modal');
+    renderTable();
+    updateResultToggleBtn();
+    } catch(err) {
+      toast('Error: ' + err.message, 'error');
+      console.error('saveAccount error:', err);
+    }
+  }
+
+  function deleteAccount(id) {
+    if (id === user.id) { toast("You can't delete your own account", 'error'); return; }
+    confirmDelete('Delete this account? The user will lose access immediately.', () => {
+      DB.set('accounts', getAccounts().filter(a => a.id !== id));
+      toast('Account deleted');
+      renderTable();
+    });
+  }
+
+  loadCustomRoles();
+  renderTable();
+  updateResultToggleBtn();
+
+  function updateResultToggleBtn() {
+    const accounts = getAccounts();
+    const studentAccounts = accounts.filter(a => a.role === 'student' && a.active);
+    const allUnlocked = studentAccounts.length > 0 &&
+      studentAccounts.every(a => a.permissions && a.permissions.includes('result'));
+    const btn = document.getElementById('result-toggle-btn');
+    if (allUnlocked) {
+      btn.textContent = '🔒 Lock Result (All Students)';
+      btn.style.color = 'var(--danger)';
+      btn.style.borderColor = 'var(--danger)';
+    } else {
+      btn.textContent = '🔓 Unlock Result (All Students)';
+      btn.style.color = 'var(--success)';
+      btn.style.borderColor = 'var(--success)';
+    }
+  }
+
+  function toggleResultForAll() {
+    const accounts = getAccounts();
+    const studentAccounts = accounts.filter(a => a.role === 'student' && a.active);
+    if (!studentAccounts.length) { toast('No active student accounts found', 'error'); return; }
+
+    const allUnlocked = studentAccounts.every(a => a.permissions && a.permissions.includes('result'));
+    const action = allUnlocked ? 'lock' : 'unlock';
+
+    if (!confirm(`${action === 'unlock' ? 'Unlock' : 'Lock'} result access for ALL ${studentAccounts.length} student accounts?`)) return;
+
+    accounts.forEach((a, i) => {
+      if (a.role === 'student' && a.active) {
+        if (!a.permissions) a.permissions = ['student_portal'];
+        if (action === 'unlock' && !a.permissions.includes('result')) {
+          a.permissions.push('result');
+        } else if (action === 'lock') {
+          a.permissions = a.permissions.filter(p => p !== 'result');
+        }
+      }
+    });
+
+    DB.set('accounts', accounts);
+    toast(`Result ${action === 'unlock' ? 'unlocked' : 'locked'} for all students`, 'success');
+    renderTable();
+    updateResultToggleBtn();
+  }
+</script>
+</body>
+</html>

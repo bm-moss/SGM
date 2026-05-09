@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teachers – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Teachers</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openAddModal()" id="add-btn">+ Add Teacher</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <h3>All Teachers</h3>
+          <div class="search-bar" style="margin:0;">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search" placeholder="Search teachers..." oninput="renderTable()" />
+            </div>
+            <select id="filter-dept" onchange="renderTable()" style="padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="">All Departments</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Subject</th><th>Department</th>
+                <th>Email</th><th>Phone</th><th>Login</th><th>Join Date</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teachers-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="teacher-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Teacher</h3>
+      <button class="modal-close" onclick="closeModal('teacher-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Full Name</label>
+          <input type="text" id="f-name" placeholder="e.g. Mr. John Smith" required />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-email" placeholder="email@school.edu" />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="f-phone" placeholder="555-0000" />
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" id="f-subject" placeholder="e.g. Mathematics" />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <select id="f-dept"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Qualification</label>
+          <input type="text" id="f-qual" placeholder="e.g. M.Sc Mathematics" />
+        </div>
+        <div class="form-group">
+          <label>Join Date</label>
+          <input type="date" id="f-join" />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Login Credentials -->
+      <div style="margin-top:4px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:12px;">🔐 Login Credentials</div>
+        <div class="form-grid">
+          <div class="form-group" style="margin:0;">
+            <label>Username *</label>
+            <input type="text" id="f-username" placeholder="e.g. john.smith" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Password * <span id="t-pw-hint" style="font-weight:400;color:var(--text-light);">(required)</span></label>
+            <input type="password" id="f-password" placeholder="Set login password" />
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-light);margin-top:8px;">Teacher will use these credentials to log in to the system.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('teacher-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTeacher()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('teachers')) window.location.href = 'dashboard.html';
+  buildSidebar('teachers');
+
+  if (!Auth.isAdmin()) document.getElementById('add-btn').classList.add('hidden');
+
+  function getTeachers() { return DB.get('teachers') || []; }
+
+  function populateDeptFilter() {
+    const depts = [...new Set(getTeachers().map(t => t.department))];
+    const sel = document.getElementById('filter-dept');
+    depts.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d;
+      sel.appendChild(o);
+    });
+  }
+
+  // Load departments from DB into the modal select
+  function populateDeptSelect(currentVal) {
+    const depts = DB.get('departments') || [];
+    const sel = document.getElementById('f-dept');
+    sel.innerHTML = '';
+    depts.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d.name; o.textContent = d.name;
+      sel.appendChild(o);
+    });
+    if (currentVal) sel.value = currentVal;
+  }
+
+  function renderTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const dept = document.getElementById('filter-dept').value;
+    const teachers = getTeachers().filter(t =>
+      (!q || t.name.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)) &&
+      (!dept || t.department === dept)
+    );
+
+    document.getElementById('teachers-table').innerHTML = teachers.length ? teachers.map((t, i) => {
+      const acc = (DB.get('accounts') || []).find(a => a.linkedId === t.id && a.role === 'teacher');
+      return `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.subject}</td>
+        <td><span class="badge badge-info">${t.department}</span></td>
+        <td>${t.email}</td>
+        <td>${t.phone}</td>
+        <td>
+          ${acc
+            ? `<span style="font-size:12px;font-weight:600;color:var(--primary);">@${acc.username}</span>`
+            : `<span style="font-size:11px;color:var(--danger);">No account</span>`}
+        </td>
+        <td>${formatDate(t.joinDate)}</td>
+        <td><span class="badge badge-${t.status === 'active' ? 'success' : 'secondary'}">${t.status}</span></td>
+        <td>
+          ${Auth.isAdmin() ? `
+            <button class="btn btn-warning btn-sm" onclick="editTeacher('${t.id}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTeacher('${t.id}')">🗑️</button>
+          ` : '<span style="color:#5f6368;font-size:13px;">View only</span>'}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="10" style="text-align:center;color:#5f6368;padding:32px;">No teachers found.</td></tr>';
+  }
+
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add Teacher';
+    document.getElementById('edit-id').value = '';
+    ['name','email','phone','subject','qual','username','password'].forEach(f => {
+      const el = document.getElementById('f-' + f);
+      if (el) el.value = '';
+    });
+    populateDeptSelect();
+    document.getElementById('f-status').value = 'active';
+    document.getElementById('f-join').value = new Date().toISOString().split('T')[0];
+    document.getElementById('t-pw-hint').textContent = '(required)';
+    openModal('teacher-modal');
+  }
+
+  function editTeacher(id) {
+    const t = getTeachers().find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('modal-title').textContent = 'Edit Teacher';
+    document.getElementById('edit-id').value = t.id;
+    document.getElementById('f-name').value = t.name;
+    document.getElementById('f-email').value = t.email;
+    document.getElementById('f-phone').value = t.phone;
+    document.getElementById('f-subject').value = t.subject;
+    populateDeptSelect(t.department);
+    document.getElementById('f-qual').value = t.qualification;
+    document.getElementById('f-join').value = t.joinDate;
+    document.getElementById('f-status').value = t.status;
+    // Pre-fill existing account credentials
+    const acc = (DB.get('accounts') || []).find(a => a.linkedId === id && a.role === 'teacher');
+    document.getElementById('f-username').value = acc ? acc.username : '';
+    document.getElementById('f-password').value = '';
+    document.getElementById('t-pw-hint').textContent = '(leave blank to keep current)';
+    openModal('teacher-modal');
+  }
+
+  function saveTeacher() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('Name is required', 'error'); return; }
+
+    const username = document.getElementById('f-username').value.trim();
+    const password = document.getElementById('f-password').value;
+    const editId = document.getElementById('edit-id').value;
+
+    if (!username) { toast('Username is required', 'error'); return; }
+    if (!editId && !password) { toast('Password is required', 'error'); return; }
+
+    // Check username uniqueness
+    const accounts = DB.get('accounts') || [];
+    const dupAcc = accounts.find(a => a.username === username && a.linkedId !== editId);
+    if (dupAcc) { toast('Username already taken', 'error'); return; }
+
+    const teachers = getTeachers();
+    const record = {
+      name, email: document.getElementById('f-email').value,
+      phone: document.getElementById('f-phone').value,
+      subject: document.getElementById('f-subject').value,
+      department: document.getElementById('f-dept').value,
+      qualification: document.getElementById('f-qual').value,
+      joinDate: document.getElementById('f-join').value,
+      status: document.getElementById('f-status').value
+    };
+
+    let teacherId;
+    if (editId) {
+      const idx = teachers.findIndex(t => t.id === editId);
+      teachers[idx] = { ...teachers[idx], ...record };
+      teacherId = editId;
+      toast('Teacher updated', 'success');
+    } else {
+      teacherId = 't_' + Date.now();
+      teachers.push({ id: teacherId, ...record });
+      toast('Teacher added', 'success');
+    }
+    DB.set('teachers', teachers);
+
+    // Create or update linked account
+    const existingIdx = accounts.findIndex(a => a.linkedId === teacherId && a.role === 'teacher');
+    if (existingIdx !== -1) {
+      accounts[existingIdx].username = username;
+      accounts[existingIdx].name = name;
+      accounts[existingIdx].email = record.email;
+      if (password) accounts[existingIdx].password = password;
+    } else {
+      accounts.push({
+        id: 'acc_' + Date.now(),
+        username, password, name,
+        role: 'teacher', email: record.email,
+        active: true, linkedId: teacherId,
+        permissions: ['dashboard','students','grades','attendance','complaints'],
+        createdAt: new Date().toISOString()
+      });
+    }
+    DB.set('accounts', accounts);
+
+    closeModal('teacher-modal');
+    renderTable();
+  }
+
+  function deleteTeacher(id) {
+    confirmDelete('Delete this teacher and their login account?', () => {
+      DB.set('teachers', getTeachers().filter(t => t.id !== id));
+      DB.set('accounts', (DB.get('accounts') || []).filter(a => !(a.linkedId === id && a.role === 'teacher')));
+      toast('Teacher deleted');
+      renderTable();
+    });
+  }
+
+  populateDeptFilter();
+  renderTable();
+</script>
+</body>
+</html>

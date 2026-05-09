@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance – SGM</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">🏫</div>
+      <div>
+        <div class="school-name">SGM</div>
+        <div class="school-sub">School Management</div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name"></div>
+        <div class="user-role" id="sidebar-user-role"></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <button class="nav-item" onclick="Auth.logout()" style="color:#ff6b6b;">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">Attendance</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openTakeAttendance()">📋 Take Attendance</button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <!-- Stats -->
+      <div class="stats-grid" id="att-stats"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-group="att" data-tab="tab-students">🎓 Students</button>
+        <button class="tab-btn" data-group="att" data-tab="tab-teachers">👨‍🏫 Teachers</button>
+        <button class="tab-btn" data-group="att" data-tab="tab-summary">📊 Summary</button>
+      </div>
+
+      <!-- Students Attendance -->
+      <div class="tab-content active" data-group="att" id="tab-students">
+        <div class="card">
+          <div class="card-header">
+            <h3>Student Attendance</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <input type="date" id="s-date-filter" onchange="renderStudentAtt()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;" />
+              <select id="s-class-filter" onchange="renderStudentAtt()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">All Classes</option>
+              </select>
+              <select id="s-status-filter" onchange="renderStudentAtt()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">All Statuses</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>#</th><th>Student</th><th>Class</th><th>Date</th><th>Status</th><th>Note</th><th>Actions</th></tr></thead>
+              <tbody id="student-att-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teachers Attendance -->
+      <div class="tab-content" data-group="att" id="tab-teachers">
+        <div class="card">
+          <div class="card-header">
+            <h3>Teacher Attendance</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <input type="date" id="t-date-filter" onchange="renderTeacherAtt()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;" />
+              <select id="t-status-filter" onchange="renderTeacherAtt()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">All Statuses</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>#</th><th>Teacher</th><th>Subject</th><th>Date</th><th>Status</th><th>Note</th><th>Actions</th></tr></thead>
+              <tbody id="teacher-att-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="tab-content" data-group="att" id="tab-summary">
+        <div class="card">
+          <div class="card-header">
+            <h3>Attendance Summary</h3>
+            <select id="sum-type" onchange="renderSummary()" style="padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;">
+              <option value="student">Students</option>
+              <option value="teacher">Teachers</option>
+            </select>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Name</th><th>Total Days</th><th>Present</th><th>Absent</th><th>Late</th><th>Attendance %</th><th>Status</th></tr></thead>
+              <tbody id="summary-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Take Attendance Modal -->
+<div class="modal-overlay" id="take-modal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3>Take Attendance</h3>
+      <button class="modal-close" onclick="closeModal('take-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+          <label>Date</label>
+          <input type="date" id="ta-date" />
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+          <label>Type</label>
+          <select id="ta-type" onchange="loadAttendanceForm()">
+            <option value="student">Students</option>
+            <option value="teacher">Teachers</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:140px;" id="ta-class-wrap">
+          <label>Class</label>
+          <select id="ta-class" onchange="loadAttendanceForm()"></select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-outline" onclick="markAll('present')">✅ All Present</button>
+        </div>
+      </div>
+      <div id="att-form-list" style="max-height:380px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('take-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAttendance()">Save Attendance</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Record Modal -->
+<div class="modal-overlay" id="edit-att-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>Edit Attendance</h3>
+      <button class="modal-close" onclick="closeModal('edit-att-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ea-id" />
+      <div class="form-group">
+        <label>Status</label>
+        <select id="ea-status">
+          <option value="present">Present</option>
+          <option value="absent">Absent</option>
+          <option value="late">Late</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <input type="text" id="ea-note" placeholder="Optional note" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('edit-att-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditAtt()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const user = Auth.requireAuth();
+  if (!Auth.hasPermission('attendance')) window.location.href = 'dashboard.html';
+  buildSidebar('attendance');
+  initTabs();
+
+  const canEdit = Auth.isAdmin() || user.role === 'teacher';
+
+  function getAtt() { return DB.get('attendance') || []; }
+  function getStudents() { return DB.get('students') || []; }
+  function getTeachers() { return DB.get('teachers') || []; }
+
+  // Populate class filter
+  function populateFilters() {
+    const classes = [...new Set(getStudents().map(s => s.class))].sort();
+    ['s-class-filter','ta-class'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = id === 's-class-filter' ? '<option value="">All Classes</option>' : '';
+      classes.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = 'Class ' + c;
+        sel.appendChild(o);
+      });
+    });
+    // Default date filters to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('s-date-filter').value = today;
+    document.getElementById('t-date-filter').value = today;
+  }
+
+  function statusBadge(s) {
+    const map = { present: 'badge-success', absent: 'badge-danger', late: 'badge-warning' };
+    return `<span class="badge ${map[s] || 'badge-secondary'}">${s}</span>`;
+  }
+
+  function renderStats() {
+    const att = getAtt();
+    const today = new Date().toISOString().split('T')[0];
+    const todayAtt = att.filter(a => a.date === today);
+    const present = todayAtt.filter(a => a.status === 'present').length;
+    const absent = todayAtt.filter(a => a.status === 'absent').length;
+    const late = todayAtt.filter(a => a.status === 'late').length;
+    document.getElementById('att-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📅</div><div class="stat-info"><div class="stat-value">${todayAtt.length}</div><div class="stat-label">Today's Records</div></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${present}</div><div class="stat-label">Present Today</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><div class="stat-value">${absent}</div><div class="stat-label">Absent Today</div></div></div>
+      <div class="stat-card"><div class="stat-icon orange">⏰</div><div class="stat-info"><div class="stat-value">${late}</div><div class="stat-label">Late Today</div></div></div>
+    `;
+  }
+
+  function renderStudentAtt() {
+    const date = document.getElementById('s-date-filter').value;
+    const cls = document.getElementById('s-class-filter').value;
+    const status = document.getElementById('s-status-filter').value;
+    const students = getStudents();
+    const att = getAtt().filter(a =>
+      a.type === 'student' &&
+      (!date || a.date === date) &&
+      (!status || a.status === status)
+    );
+    const filtered = att.filter(a => {
+      const s = students.find(s => s.id === a.personId);
+      return s && (!cls || s.class === cls);
+    });
+
+    document.getElementById('student-att-table').innerHTML = filtered.length ? filtered.map((a, i) => {
+      const s = students.find(s => s.id === a.personId) || {};
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${s.name || a.personId}</strong></td>
+        <td><span class="badge badge-info">${s.class || '-'}</span></td>
+        <td>${formatDate(a.date)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td style="color:#5f6368;font-size:13px;">${a.note || '-'}</td>
+        <td>${canEdit ? `<button class="btn btn-warning btn-sm" onclick="editAtt('${a.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAtt('${a.id}')">🗑️</button>` : ''}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:#5f6368;padding:32px;">No records found.</td></tr>';
+  }
+
+  function renderTeacherAtt() {
+    const date = document.getElementById('t-date-filter').value;
+    const status = document.getElementById('t-status-filter').value;
+    const teachers = getTeachers();
+    const att = getAtt().filter(a =>
+      a.type === 'teacher' &&
+      (!date || a.date === date) &&
+      (!status || a.status === status)
+    );
+
+    document.getElementById('teacher-att-table').innerHTML = att.length ? att.map((a, i) => {
+      const t = teachers.find(t => t.id === a.personId) || {};
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${t.name || a.personId}</strong></td>
+        <td>${t.subject || '-'}</td>
+        <td>${formatDate(a.date)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td style="color:#5f6368;font-size:13px;">${a.note || '-'}</td>
+        <td>${canEdit ? `<button class="btn btn-warning btn-sm" onclick="editAtt('${a.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAtt('${a.id}')">🗑️</button>` : ''}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:#5f6368;padding:32px;">No records found.</td></tr>';
+  }
+
+  function renderSummary() {
+    const type = document.getElementById('sum-type').value;
+    const people = type === 'student' ? getStudents() : getTeachers();
+    const att = getAtt().filter(a => a.type === type);
+
+    const rows = people.map(p => {
+      const pa = att.filter(a => a.personId === p.id);
+      const present = pa.filter(a => a.status === 'present').length;
+      const absent = pa.filter(a => a.status === 'absent').length;
+      const late = pa.filter(a => a.status === 'late').length;
+      const total = pa.length;
+      const pct = total ? Math.round((present / total) * 100) : 0;
+      return { p, total, present, absent, late, pct };
+    }).sort((a, b) => b.pct - a.pct);
+
+    document.getElementById('summary-table').innerHTML = rows.length ? rows.map(r => `
+      <tr>
+        <td><strong>${r.p.name}</strong></td>
+        <td>${r.total}</td>
+        <td style="color:#137333;font-weight:600;">${r.present}</td>
+        <td style="color:#c5221f;font-weight:600;">${r.absent}</td>
+        <td style="color:#b06000;font-weight:600;">${r.late}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="progress-bar" style="flex:1;min-width:80px;">
+              <div class="progress-fill" style="width:${r.pct}%;background:${r.pct>=80?'#34a853':r.pct>=60?'#fbbc04':'#ea4335'};"></div>
+            </div>
+            <span style="font-weight:700;min-width:36px;">${r.pct}%</span>
+          </div>
+        </td>
+        <td><span class="badge badge-${r.pct>=80?'success':r.pct>=60?'warning':'danger'}">${r.pct>=80?'Good':r.pct>=60?'Average':'Poor'}</span></td>
+      </tr>
+    `).join('') : '<tr><td colspan="7" style="text-align:center;color:#5f6368;padding:32px;">No data.</td></tr>';
+  }
+
+  // ===== TAKE ATTENDANCE =====
+  function openTakeAttendance() {
+    document.getElementById('ta-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('ta-type').value = 'student';
+    document.getElementById('ta-class-wrap').style.display = '';
+    loadAttendanceForm();
+    openModal('take-modal');
+  }
+
+  function loadAttendanceForm() {
+    const type = document.getElementById('ta-type').value;
+    const cls = document.getElementById('ta-class').value;
+    document.getElementById('ta-class-wrap').style.display = type === 'teacher' ? 'none' : '';
+
+    const people = type === 'student'
+      ? getStudents().filter(s => !cls || s.class === cls)
+      : getTeachers();
+
+    const date = document.getElementById('ta-date').value;
+    const existing = getAtt().filter(a => a.type === type && a.date === date);
+
+    document.getElementById('att-form-list').innerHTML = people.length ? `
+      <table style="width:100%;">
+        <thead><tr><th>Name</th><th>${type==='student'?'Class':'Subject'}</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody>
+          ${people.map(p => {
+            const ex = existing.find(a => a.personId === p.id);
+            const st = ex ? ex.status : 'present';
+            return `<tr>
+              <td><strong>${p.name}</strong></td>
+              <td>${type==='student'?p.class:p.subject}</td>
+              <td>
+                <select class="att-status" data-id="${p.id}" style="padding:6px 10px;border:2px solid var(--border);border-radius:6px;font-size:13px;">
+                  <option value="present" ${st==='present'?'selected':''}>✅ Present</option>
+                  <option value="absent" ${st==='absent'?'selected':''}>❌ Absent</option>
+                  <option value="late" ${st==='late'?'selected':''}>⏰ Late</option>
+                </select>
+              </td>
+              <td><input type="text" class="att-note" data-id="${p.id}" value="${ex?ex.note:''}" placeholder="Note..." style="padding:6px 10px;border:2px solid var(--border);border-radius:6px;font-size:13px;width:100%;" /></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>` : '<div style="text-align:center;color:#5f6368;padding:32px;">No people found.</div>';
+  }
+
+  function markAll(status) {
+    document.querySelectorAll('.att-status').forEach(sel => sel.value = status);
+  }
+
+  function saveAttendance() {
+    const date = document.getElementById('ta-date').value;
+    const type = document.getElementById('ta-type').value;
+    if (!date) { toast('Select a date', 'error'); return; }
+
+    let att = getAtt().filter(a => !(a.type === type && a.date === date));
+    document.querySelectorAll('.att-status').forEach(sel => {
+      const pid = sel.dataset.id;
+      const noteEl = document.querySelector(`.att-note[data-id="${pid}"]`);
+      att.push({ id: 'att_' + Date.now() + '_' + pid, type, personId: pid, date, status: sel.value, note: noteEl ? noteEl.value : '' });
+    });
+
+    DB.set('attendance', att);
+    toast('Attendance saved', 'success');
+    closeModal('take-modal');
+    renderStats();
+    renderStudentAtt();
+    renderTeacherAtt();
+    renderSummary();
+  }
+
+  function editAtt(id) {
+    const a = getAtt().find(a => a.id === id);
+    if (!a) return;
+    document.getElementById('ea-id').value = a.id;
+    document.getElementById('ea-status').value = a.status;
+    document.getElementById('ea-note').value = a.note || '';
+    openModal('edit-att-modal');
+  }
+
+  function saveEditAtt() {
+    const id = document.getElementById('ea-id').value;
+    const att = getAtt();
+    const idx = att.findIndex(a => a.id === id);
+    if (idx === -1) return;
+    att[idx].status = document.getElementById('ea-status').value;
+    att[idx].note = document.getElementById('ea-note').value;
+    DB.set('attendance', att);
+    toast('Updated', 'success');
+    closeModal('edit-att-modal');
+    renderStats(); renderStudentAtt(); renderTeacherAtt(); renderSummary();
+  }
+
+  function deleteAtt(id) {
+    confirmDelete('Delete this attendance record?', () => {
+      DB.set('attendance', getAtt().filter(a => a.id !== id));
+      toast('Deleted');
+      renderStats(); renderStudentAtt(); renderTeacherAtt(); renderSummary();
+    });
+  }
+
+  populateFilters();
+  renderStats();
+  renderStudentAtt();
+  renderTeacherAtt();
+  renderSummary();
+</script>
+</body>
+</html>
