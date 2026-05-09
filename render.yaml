@@ -2,6 +2,5 @@ services:
   - type: web
     name: edumanage-pro
     env: node
-    buildCommand: npm install
-    startCommand: npm start
-    rootDir: .
+    buildCommand: echo "no build needed"
+    startCommand: node server.js

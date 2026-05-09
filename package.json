@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "School Management System",
   "scripts": {
-    "start": "npx serve . -p $PORT"
+    "start": "node server.js"
   },
-  "dependencies": {
-    "serve": "^14.2.3"
+  "engines": {
+    "node": ">=18"
   }
 }
