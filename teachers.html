@@ -125,6 +125,21 @@
             <option value="inactive">Inactive</option>
           </select>
         </div>
+        <div class="form-group full-width">
+          <label>Role in School</label>
+          <select id="f-role-type">
+            <option value="subject">Subject Teacher</option>
+            <option value="homeroom">Homeroom Teacher</option>
+            <option value="both">Homeroom + Subject Teacher</option>
+          </select>
+        </div>
+        <div class="form-group full-width" id="homeroom-class-wrap" style="display:none;">
+          <label>Homeroom Class</label>
+          <select id="f-homeroom-class">
+            <option value="">— Select Class —</option>
+          </select>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">This teacher will be the homeroom teacher for the selected class and can access all its subjects.</div>
+        </div>
       </div>
 
       <!-- Login Credentials -->
@@ -161,6 +176,21 @@
   if (!Auth.isAdmin()) document.getElementById('add-btn').classList.add('hidden');
 
   function getTeachers() { return DB.get('teachers') || []; }
+
+  // Toggle homeroom class selector based on role
+  document.getElementById('f-role-type').addEventListener('change', function() {
+    const show = this.value === 'homeroom' || this.value === 'both';
+    document.getElementById('homeroom-class-wrap').style.display = show ? '' : 'none';
+    if (show) {
+      const sel = document.getElementById('f-homeroom-class');
+      sel.innerHTML = '<option value="">— Select Class —</option>';
+      (DB.get('classes') || []).forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.name; o.textContent = 'Class ' + c.name;
+        sel.appendChild(o);
+      });
+    }
+  });
 
   // Subjects come from the DB subjects list only
   function getAllKnownSubjects() {

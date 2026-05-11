@@ -34,7 +34,9 @@
   <div class="main-content">
     <div class="topbar">
       <div class="topbar-title">Grades & Results</div>
-      <div class="topbar-actions" id="topbar-actions"></div>
+      <div class="topbar-actions" id="topbar-actions">
+        <button class="btn btn-ghost btn-sm" id="all-results-btn" onclick="openAllResultsModal()" style="display:none;">📋 All Results</button>
+      </div>
     </div>
 
     <div class="page-content">
@@ -81,6 +83,12 @@
             <div id="term-lock-msg" style="font-size:12.5px;color:#b45309;background:#fef3c7;padding:8px 12px;border-radius:6px;border:1px solid #fde68a;display:none;align-self:flex-end;">
               ⚠️ Complete the previous semester before proceeding.
             </div>
+          </div>
+
+          <!-- Homeroom teacher info banner -->
+          <div id="homeroom-banner" style="display:none;margin-top:14px;padding:10px 14px;background:#eef2ff;border-radius:var(--r-md);border:1px solid #c7d2fe;font-size:13px;align-items:center;gap:10px;">
+            <span style="font-size:18px;">⭐</span>
+            <span id="homeroom-banner-text"></span>
           </div>
 
           <!-- Exam Weights (admin/teacher only) -->
@@ -174,6 +182,20 @@
       </div>
 
     </div>
+  </div>
+</div>
+
+<!-- All Results Modal -->
+<div class="modal-overlay" id="all-results-modal">
+  <div class="modal" style="max-width:900px;max-height:92vh;">
+    <div class="modal-header">
+      <h3 id="all-results-title">All Results</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ Print</button>
+        <button class="modal-close" onclick="closeModal('all-results-modal')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="all-results-body" style="padding:16px;overflow-x:auto;"></div>
   </div>
 </div>
 
@@ -641,10 +663,28 @@
       gSel.appendChild(o);
     });
 
-    // Show add button if allowed
+    // Show add button if allowed + All Results for admin
     if (canEdit) {
       document.getElementById('topbar-actions').innerHTML =
-        `<button class="btn btn-primary" onclick="openAddGrade()">+ Add Grade</button>`;
+        `<button class="btn btn-outline btn-sm" onclick="openAllResultsModal()" style="margin-right:6px;">📋 All Results</button>
+         <button class="btn btn-primary" onclick="openAddGrade()">+ Add Grade</button>`;
+    } else if (Auth.isAdmin()) {
+      document.getElementById('topbar-actions').innerHTML =
+        `<button class="btn btn-outline btn-sm" onclick="openAllResultsModal()">📋 All Results</button>`;
+    }
+
+    // Show homeroom teacher banner
+    const classes = DB.get('classes') || [];
+    const teachers = DB.get('teachers') || [];
+    const cls = classes.find(c => c.name === activeClass);
+    const hrt = cls ? teachers.find(t => t.id === cls.classTeacher) : null;
+    const banner = document.getElementById('homeroom-banner');
+    if (hrt) {
+      banner.style.display = 'flex';
+      document.getElementById('homeroom-banner-text').innerHTML =
+        `<strong>Homeroom Teacher:</strong> ${hrt.name} &nbsp;·&nbsp; ${(hrt.subjects||[hrt.subject]).join(', ')}`;
+    } else {
+      banner.style.display = 'none';
     }
 
     renderGrades();
@@ -1006,6 +1046,68 @@
       renderGrades();
       renderRankings();
     });
+  }
+
+  // ── ALL RESULTS MODAL ──────────────────────────────────────
+  function openAllResultsModal() {
+    const allGrades = getGrades();
+    const subjects = getSubjects();
+    const students = getStudents().filter(s => s.class === activeClass);
+    const maxTotal = subjects.length * 100;
+
+    document.getElementById('all-results-title').textContent =
+      `All Results — Class ${activeClass} · ${activeTerm}`;
+
+    if (!students.length || !subjects.length) {
+      document.getElementById('all-results-body').innerHTML =
+        '<div style="text-align:center;color:var(--text-light);padding:40px;">No data for this class and semester.</div>';
+      openModal('all-results-modal');
+      return;
+    }
+
+    // Build ranked rows
+    const rows = students.map(s => {
+      const sg = allGrades.filter(g => g.studentId === s.id && g.term === activeTerm);
+      const map = {};
+      sg.forEach(g => { map[g.subject] = g.score; });
+      const scores = Object.values(map);
+      const total = scores.length ? scores.reduce((a, b) => a + b, 0) : 0;
+      const avg   = scores.length ? Math.round((total / scores.length) * 10) / 10 : 0;
+      return { student: s, map, total, avg };
+    }).sort((a, b) => b.total - a.total).map((r, i) => ({ ...r, rank: i + 1 }));
+
+    const medal = r => r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '#' + r.rank;
+
+    document.getElementById('all-results-body').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:9px 12px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;">Rank</th>
+            <th style="padding:9px 12px;text-align:left;border-bottom:2px solid var(--border);">Student</th>
+            ${subjects.map(s => `<th style="padding:9px 12px;text-align:center;border-bottom:2px solid var(--border);white-space:nowrap;">${s}</th>`).join('')}
+            <th style="padding:9px 12px;text-align:center;border-bottom:2px solid var(--border);">Total /${maxTotal}</th>
+            <th style="padding:9px 12px;text-align:center;border-bottom:2px solid var(--border);">Average</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => {
+            const tc = r.total >= maxTotal * 0.8 ? '#15803d' : r.total >= maxTotal * 0.6 ? '#b45309' : '#b91c1c';
+            return `<tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 12px;font-weight:700;">${medal(r)}</td>
+              <td style="padding:9px 12px;font-weight:600;">${r.student.name}</td>
+              ${subjects.map(s => {
+                const sc = r.map[s];
+                const c = sc === undefined ? '#9ca3af' : sc >= 80 ? '#15803d' : sc >= 60 ? '#b45309' : '#b91c1c';
+                return `<td style="padding:9px 12px;text-align:center;font-weight:600;color:${c};">${sc !== undefined ? sc : '—'}</td>`;
+              }).join('')}
+              <td style="padding:9px 12px;text-align:center;font-weight:700;color:${tc};">${r.total || '—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-weight:700;color:${tc};">${r.avg || '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+
+    openModal('all-results-modal');
   }
 
   populateClassSelector();
