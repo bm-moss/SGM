@@ -240,11 +240,36 @@
     const role = document.getElementById('recv-role').value;
     const sel = document.getElementById('recv-id');
     sel.innerHTML = '<option value="">— Select —</option>';
+
     if (role === 'teacher') {
-      (DB.get('teachers') || []).forEach(t => {
+      const allTeachers = DB.get('teachers') || [];
+      const classes = DB.get('classes') || [];
+      const grades = DB.get('grades') || [];
+      const myClass = studentRecord.class;
+
+      // Homeroom teacher of the class
+      const classRecord = classes.find(c => c.name === myClass);
+      const homeroomId = classRecord ? classRecord.classTeacher : null;
+
+      // Subject teachers who have graded this class
+      const subjectTeacherIds = new Set(
+        grades.filter(g => g.class === myClass).map(g => {
+          const t = allTeachers.find(t => t.subject === g.subject);
+          return t ? t.id : null;
+        }).filter(Boolean)
+      );
+      if (homeroomId) subjectTeacherIds.add(homeroomId);
+
+      const myTeachers = allTeachers.filter(t => subjectTeacherIds.has(t.id));
+
+      if (!myTeachers.length) {
+        sel.innerHTML = '<option value="">No teachers assigned to your class yet</option>';
+        return;
+      }
+      myTeachers.forEach(t => {
         const o = document.createElement('option');
         o.value = t.id; o.dataset.name = t.name; o.dataset.role = 'teacher';
-        o.textContent = t.name + ' – ' + t.subject;
+        o.textContent = t.name + ' – ' + t.subject + (t.id === homeroomId ? ' ⭐' : '');
         sel.appendChild(o);
       });
     } else {

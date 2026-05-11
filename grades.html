@@ -240,6 +240,39 @@
 
   const canEdit = Auth.isAdmin() || user.role === 'teacher';
 
+  // ── Teacher access scope ──
+  // Get the linked teacher record for the logged-in teacher
+  function getTeacherRecord() {
+    if (!Auth.isTeacher()) return null;
+    return (DB.get('teachers') || []).find(t => t.id === user.linkedId) || null;
+  }
+
+  // Is this teacher the homeroom teacher of the active class?
+  function isHomeroomTeacher() {
+    if (Auth.isAdmin()) return true;
+    const classes = DB.get('classes') || [];
+    const cls = classes.find(c => c.name === activeClass);
+    return cls && cls.classTeacher === user.linkedId;
+  }
+
+  // Can this teacher edit a specific subject?
+  function canEditSubject(subject) {
+    if (Auth.isAdmin()) return true;
+    if (isHomeroomTeacher()) return true; // homeroom can edit all
+    const tr = getTeacherRecord();
+    return tr && tr.subject === subject;
+  }
+
+  // Which subjects can this teacher see/add grades for?
+  function getAccessibleSubjects(allSubjects) {
+    if (Auth.isAdmin()) return allSubjects;
+    if (isHomeroomTeacher()) return allSubjects;
+    const tr = getTeacherRecord();
+    if (!tr) return [];
+    // Subject teacher sees only their subject
+    return allSubjects.filter(s => s === tr.subject);
+  }
+
   // ── State ──
   let activeClass = '';
   let activeTerm  = '';
@@ -638,20 +671,28 @@
       return { student: s, map };
     });
 
+    // Get subjects — teachers only see their subject (or all if homeroom)
+    const allSubjects = getSubjects();
+    const subjects = canEdit ? getAccessibleSubjects(allSubjects) : allSubjects;
+    const visibleSubjects = allSubjects; // always show all columns for context
+
     // Header — Total shows /maxTotal
-    const maxTotal = subjects.length * 100;
+    const maxTotal = visibleSubjects.length * 100;
     document.getElementById('grades-thead').innerHTML = `
       <tr>
         <th>#</th>
         <th>Student</th>
-        ${subjects.map(sub => `<th style="text-align:center;">${sub}</th>`).join('')}
+        ${visibleSubjects.map(sub => {
+          const canEditThis = canEditSubject(sub);
+          return `<th style="text-align:center;">${sub}${canEditThis && canEdit ? ' ✏️' : ''}</th>`;
+        }).join('')}
         <th style="text-align:center;">Total /${maxTotal}</th>
         <th style="text-align:center;">Average</th>
         ${canEdit ? '<th></th>' : ''}
       </tr>`;
 
     document.getElementById('grades-table').innerHTML = rows.length ? rows.map((r, i) => {
-      const scores = subjects.map(sub => r.map[sub]?.score).filter(v => v !== undefined);
+      const scores = visibleSubjects.map(sub => r.map[sub]?.score).filter(v => v !== undefined);
       const total = scores.length ? scores.reduce((a, b) => a + b, 0) : null;
       const avg   = (total !== null && scores.length) ? Math.round((total / scores.length) * 10) / 10 : null;
       const totalColor = total === null ? '#9ca3af' : total >= maxTotal * 0.8 ? '#15803d' : total >= maxTotal * 0.6 ? '#b45309' : '#b91c1c';
@@ -660,14 +701,15 @@
       return `<tr>
         <td>${i + 1}</td>
         <td><strong>${r.student.name}</strong></td>
-        ${subjects.map(sub => {
+        ${visibleSubjects.map(sub => {
           const g = r.map[sub];
           const sc = g ? g.score : null;
           const scColor = sc === null ? '#9ca3af' : sc >= 80 ? '#15803d' : sc >= 60 ? '#b45309' : '#b91c1c';
+          const canEditThis = canEditSubject(sub) && canEdit;
           return `<td style="text-align:center;">
             ${g
               ? `<span style="font-weight:700;color:${scColor};">${sc}</span>
-                 ${canEdit ? `<br><span style="font-size:10px;">
+                 ${canEditThis ? `<br><span style="font-size:10px;">
                    <button onclick="editGrade('${g.id}')" style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:10px;">edit</button>
                    <button onclick="deleteGrade('${g.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:10px;">del</button>
                  </span>` : ''}`
@@ -684,7 +726,7 @@
           <button class="btn btn-primary btn-sm" onclick="openAddGradeForStudent('${r.student.id}')">+ Score</button>
         </td>` : ''}
       </tr>`;
-    }).join('') : `<tr><td colspan="${4 + subjects.length + (canEdit ? 1 : 0)}" style="text-align:center;color:var(--text-light);padding:32px;">No students found.</td></tr>`;
+    }).join('') : `<tr><td colspan="${4 + visibleSubjects.length + (canEdit ? 1 : 0)}" style="text-align:center;color:var(--text-light);padding:32px;">No students found.</td></tr>`;
   }
 
   // ── RENDER RANKINGS (subjects as columns, no grade) ──
@@ -833,6 +875,17 @@
     document.getElementById('g-subject').value = '';
     ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('calc-preview').innerHTML = 'Enter scores above';
+    // Subject teachers: pre-fill and lock their subject
+    const tr = getTeacherRecord();
+    if (tr && !isHomeroomTeacher()) {
+      document.getElementById('g-subject').value = tr.subject;
+      document.getElementById('g-subject').readOnly = true;
+      document.getElementById('g-subject').style.background = '#f8fafc';
+    } else {
+      document.getElementById('g-subject').readOnly = false;
+      document.getElementById('g-subject').style.background = '';
+    }
+    updateModalLabels();
     openModal('grade-modal');
   }
 
