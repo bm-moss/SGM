@@ -92,10 +92,20 @@
           <input type="text" id="f-phone" placeholder="555-0000" />
         </div>
         <div class="form-group">
-          <label>Subjects <span style="font-weight:400;color:var(--text-light);">comma-separated</span></label>
-          <input type="text" id="f-subject" placeholder="e.g. Mathematics, Physics, Chemistry" />
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Enter multiple subjects separated by commas</div>
+          <label>Number of Subjects</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="f-subject-count" min="1" max="20" placeholder="e.g. 3" value="1"
+              style="width:100px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;" />
+            <button type="button" class="btn btn-outline btn-sm" onclick="generateSubjectPicker()">Generate</button>
+          </div>
         </div>
+        <div class="form-group full-width" id="subject-picker-wrap" style="display:none;">
+          <label>Select Subjects</label>
+          <div id="subject-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);"></div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;" id="subject-picker-hint"></div>
+        </div>
+        <!-- hidden field keeps backward compat -->
+        <input type="hidden" id="f-subject" />
         <div class="form-group">
           <label>Department</label>
           <select id="f-dept"></select>
@@ -151,6 +161,55 @@
   if (!Auth.isAdmin()) document.getElementById('add-btn').classList.add('hidden');
 
   function getTeachers() { return DB.get('teachers') || []; }
+
+  // All known subjects (from grades + a default list)
+  function getAllKnownSubjects() {
+    const fromGrades = [...new Set((DB.get('grades') || []).map(g => g.subject))];
+    const defaults = ['Mathematics','English','Physics','Chemistry','Biology','History','Geography','Computer Science','Arabic','Islamic Studies','Literature','Economics','Art','Physical Education'];
+    return [...new Set([...defaults, ...fromGrades])].sort();
+  }
+
+  function generateSubjectPicker() {
+    const count = parseInt(document.getElementById('f-subject-count').value) || 1;
+    const known = getAllKnownSubjects();
+    const wrap = document.getElementById('subject-picker-wrap');
+    const grid = document.getElementById('subject-picker-grid');
+    const hint = document.getElementById('subject-picker-hint');
+
+    wrap.style.display = '';
+    hint.textContent = `Select ${count} subject${count > 1 ? 's' : ''} from the list below.`;
+
+    grid.innerHTML = known.map(s => {
+      const id = 'subj_' + s.replace(/\s+/g, '_');
+      return `<label id="lbl_${id}" style="display:flex;align-items:center;gap:7px;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);transition:all .12s;user-select:none;">
+        <input type="checkbox" id="${id}" value="${s}" style="accent-color:var(--primary);width:14px;height:14px;"
+          onchange="onSubjectCheck(this, ${count})" />
+        ${s}
+      </label>`;
+    }).join('');
+  }
+
+  function onSubjectCheck(cb, maxCount) {
+    const checked = [...document.querySelectorAll('#subject-picker-grid input[type=checkbox]:checked')];
+    // Enforce max count
+    if (checked.length > maxCount) { cb.checked = false; toast(`Select exactly ${maxCount} subject${maxCount>1?'s':''}`, 'error'); return; }
+    // Update label styles
+    document.querySelectorAll('#subject-picker-grid input[type=checkbox]').forEach(c => {
+      const lbl = document.getElementById('lbl_subj_' + c.value.replace(/\s+/g,'_'));
+      if (lbl) {
+        lbl.style.background = c.checked ? 'var(--primary-light)' : '';
+        lbl.style.borderColor = c.checked ? 'var(--primary)' : 'var(--border)';
+        lbl.style.color = c.checked ? 'var(--primary)' : 'var(--text-muted)';
+      }
+    });
+    const hint = document.getElementById('subject-picker-hint');
+    hint.textContent = `${checked.length}/${maxCount} selected`;
+    hint.style.color = checked.length === maxCount ? 'var(--success-text)' : 'var(--text-muted)';
+  }
+
+  function getSelectedSubjects() {
+    return [...document.querySelectorAll('#subject-picker-grid input[type=checkbox]:checked')].map(c => c.value);
+  }
 
   function populateDeptFilter() {
     const depts = [...new Set(getTeachers().map(t => t.department))];
@@ -213,10 +272,13 @@
   function openAddModal() {
     document.getElementById('modal-title').textContent = 'Add Teacher';
     document.getElementById('edit-id').value = '';
-    ['name','email','phone','subject','qual','username','password'].forEach(f => {
+    ['name','email','phone','qual','username','password'].forEach(f => {
       const el = document.getElementById('f-' + f);
       if (el) el.value = '';
     });
+    document.getElementById('f-subject-count').value = '1';
+    document.getElementById('subject-picker-wrap').style.display = 'none';
+    document.getElementById('subject-picker-grid').innerHTML = '';
     populateDeptSelect();
     document.getElementById('f-status').value = 'active';
     document.getElementById('f-join').value = new Date().toISOString().split('T')[0];
@@ -232,12 +294,23 @@
     document.getElementById('f-name').value = t.name;
     document.getElementById('f-email').value = t.email;
     document.getElementById('f-phone').value = t.phone;
-    document.getElementById('f-subject').value = t.subjects ? t.subjects.join(', ') : (t.subject || '');
     populateDeptSelect(t.department);
     document.getElementById('f-qual').value = t.qualification;
     document.getElementById('f-join').value = t.joinDate;
     document.getElementById('f-status').value = t.status;
-    // Pre-fill existing account credentials
+
+    // Restore subject picker
+    const existingSubs = t.subjects && t.subjects.length ? t.subjects : (t.subject ? [t.subject] : []);
+    document.getElementById('f-subject-count').value = existingSubs.length || 1;
+    generateSubjectPicker();
+    // Pre-check existing subjects
+    setTimeout(() => {
+      existingSubs.forEach(s => {
+        const cb = document.getElementById('subj_' + s.replace(/\s+/g,'_'));
+        if (cb) { cb.checked = true; onSubjectCheck(cb, existingSubs.length); }
+      });
+    }, 50);
+
     const acc = (DB.get('accounts') || []).find(a => a.linkedId === id && a.role === 'teacher');
     document.getElementById('f-username').value = acc ? acc.username : '';
     document.getElementById('f-password').value = '';
@@ -248,6 +321,11 @@
   function saveTeacher() {
     const name = document.getElementById('f-name').value.trim();
     if (!name) { toast('Name is required', 'error'); return; }
+
+    const selectedSubjects = getSelectedSubjects();
+    const count = parseInt(document.getElementById('f-subject-count').value) || 1;
+    if (selectedSubjects.length === 0) { toast('Select at least one subject', 'error'); return; }
+    if (selectedSubjects.length !== count) { toast(`Please select exactly ${count} subject${count>1?'s':''}`, 'error'); return; }
 
     const username = document.getElementById('f-username').value.trim();
     const password = document.getElementById('f-password').value;
@@ -265,9 +343,8 @@
     const record = {
       name, email: document.getElementById('f-email').value,
       phone: document.getElementById('f-phone').value,
-      // Store as array, keep single 'subject' for backward compat display
-      subjects: document.getElementById('f-subject').value.split(',').map(s => s.trim()).filter(Boolean),
-      subject: document.getElementById('f-subject').value.split(',').map(s => s.trim()).filter(Boolean)[0] || '',
+      subjects: selectedSubjects,
+      subject: selectedSubjects[0] || '',
       department: document.getElementById('f-dept').value,
       qualification: document.getElementById('f-qual').value,
       joinDate: document.getElementById('f-join').value,
