@@ -254,7 +254,11 @@
       // Subject teachers who have graded this class
       const subjectTeacherIds = new Set(
         grades.filter(g => g.class === myClass).map(g => {
-          const t = allTeachers.find(t => t.subject === g.subject);
+          // Match teacher by subjects array or legacy subject field
+          const t = allTeachers.find(t => {
+            const subs = t.subjects && t.subjects.length ? t.subjects : (t.subject ? [t.subject] : []);
+            return subs.includes(g.subject);
+          });
           return t ? t.id : null;
         }).filter(Boolean)
       );

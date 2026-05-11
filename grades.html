@@ -258,9 +258,12 @@
   // Can this teacher edit a specific subject?
   function canEditSubject(subject) {
     if (Auth.isAdmin()) return true;
-    if (isHomeroomTeacher()) return true; // homeroom can edit all
+    if (isHomeroomTeacher()) return true;
     const tr = getTeacherRecord();
-    return tr && tr.subject === subject;
+    if (!tr) return false;
+    // Support both subjects array and legacy single subject
+    const subjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+    return subjects.includes(subject);
   }
 
   // Which subjects can this teacher see/add grades for?
@@ -269,8 +272,8 @@
     if (isHomeroomTeacher()) return allSubjects;
     const tr = getTeacherRecord();
     if (!tr) return [];
-    // Subject teacher sees only their subject
-    return allSubjects.filter(s => s === tr.subject);
+    const subjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+    return allSubjects.filter(s => subjects.includes(s));
   }
 
   // ── State ──
@@ -875,12 +878,24 @@
     document.getElementById('g-subject').value = '';
     ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('calc-preview').innerHTML = 'Enter scores above';
-    // Subject teachers: pre-fill and lock their subject
+    // Subject teachers: restrict to their subjects
     const tr = getTeacherRecord();
     if (tr && !isHomeroomTeacher()) {
-      document.getElementById('g-subject').value = tr.subject;
-      document.getElementById('g-subject').readOnly = true;
-      document.getElementById('g-subject').style.background = '#f8fafc';
+      const teacherSubjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+      if (teacherSubjects.length === 1) {
+        // Single subject — pre-fill and lock
+        document.getElementById('g-subject').value = teacherSubjects[0];
+        document.getElementById('g-subject').readOnly = true;
+        document.getElementById('g-subject').style.background = '#f8fafc';
+      } else if (teacherSubjects.length > 1) {
+        // Multiple subjects — restrict datalist to only their subjects
+        document.getElementById('g-subject').value = '';
+        document.getElementById('g-subject').readOnly = false;
+        document.getElementById('g-subject').style.background = '';
+        // Update datalist to only show their subjects
+        const dl = document.getElementById('subject-options');
+        dl.innerHTML = teacherSubjects.map(s => `<option value="${s}">`).join('');
+      }
     } else {
       document.getElementById('g-subject').readOnly = false;
       document.getElementById('g-subject').style.background = '';
