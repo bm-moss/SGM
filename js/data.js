@@ -140,3 +140,6 @@ const GradeCalc = {
 };
 
 initData();
+
+// ensure subjects exist
+if(!DB.get('subjects')){DB.set('subjects',['Mathematics','English','Physics','Chemistry','Biology','History','Geography','Computer Science','Arabic','Islamic Studies','Literature','Economics','Art','Physical Education']);}
