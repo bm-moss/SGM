@@ -193,14 +193,9 @@
         </div>
         <div class="form-group full-width">
           <label>Subject</label>
-          <input type="text" id="g-subject" list="subject-options" placeholder="e.g. Mathematics" />
-          <datalist id="subject-options">
-            <option value="Mathematics"></option><option value="English"></option>
-            <option value="Physics"></option><option value="Chemistry"></option>
-            <option value="Biology"></option><option value="History"></option>
-            <option value="Geography"></option><option value="Computer Science"></option>
-            <option value="Arabic"></option><option value="Islamic Studies"></option>
-          </datalist>
+          <select id="g-subject" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;">
+            <option value="">— Select Subject —</option>
+          </select>
         </div>
         <div class="form-group">
           <label id="lbl-midterm">Midterm <span style="font-weight:400;color:var(--text-light);">out of 30 — optional</span></label>
@@ -884,9 +879,20 @@
   function openAddGrade() {
     document.getElementById('grade-modal-title').textContent = 'Add Grade';
     document.getElementById('g-edit-id').value = '';
-    document.getElementById('g-subject').value = '';
     ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('calc-preview').innerHTML = 'Enter scores above';
+
+    // Populate subject select from DB
+    const subjects = DB.get('subjects') || [];
+    const sel = document.getElementById('g-subject');
+    sel.innerHTML = '<option value="">— Select Subject —</option>';
+    subjects.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+    sel.disabled = false;
+
     // Subject teachers: restrict to their assigned subjects for this class
     const tr = getTeacherRecord();
     if (tr && !isHomeroomTeacher()) {
@@ -896,21 +902,17 @@
         ? (myAssignment.subjects || [])
         : (tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []));
 
+      // Filter select to only teacher's subjects
+      [...sel.options].forEach(o => {
+        if (o.value && !teacherSubjects.includes(o.value)) o.remove();
+      });
+
       if (teacherSubjects.length === 1) {
-        document.getElementById('g-subject').value = teacherSubjects[0];
-        document.getElementById('g-subject').readOnly = true;
-        document.getElementById('g-subject').style.background = '#f8fafc';
-      } else if (teacherSubjects.length > 1) {
-        document.getElementById('g-subject').value = '';
-        document.getElementById('g-subject').readOnly = false;
-        document.getElementById('g-subject').style.background = '';
-        const dl = document.getElementById('subject-options');
-        dl.innerHTML = teacherSubjects.map(s => `<option value="${s}">`).join('');
+        sel.value = teacherSubjects[0];
+        sel.disabled = true;
       }
-    } else {
-      document.getElementById('g-subject').readOnly = false;
-      document.getElementById('g-subject').style.background = '';
     }
+
     updateModalLabels();
     openModal('grade-modal');
   }
@@ -926,7 +928,25 @@
     document.getElementById('grade-modal-title').textContent = 'Edit Grade';
     document.getElementById('g-edit-id').value = g.id;
     document.getElementById('g-student').value = g.studentId;
-    document.getElementById('g-subject').value = g.subject;
+
+    // Populate subject select
+    const subjects = DB.get('subjects') || [];
+    const sel = document.getElementById('g-subject');
+    sel.innerHTML = '<option value="">— Select Subject —</option>';
+    subjects.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+    // Add current subject if not in list
+    if (g.subject && !subjects.includes(g.subject)) {
+      const o = document.createElement('option');
+      o.value = g.subject; o.textContent = g.subject;
+      sel.appendChild(o);
+    }
+    sel.value = g.subject;
+    sel.disabled = false;
+
     document.getElementById('g-midterm').value = g.midterm !== undefined ? g.midterm : '';
     document.getElementById('g-final').value   = g.final   !== undefined ? g.final   : '';
     document.getElementById('g-assign').value  = g.assignment !== undefined ? g.assignment : '';

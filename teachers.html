@@ -162,11 +162,9 @@
 
   function getTeachers() { return DB.get('teachers') || []; }
 
-  // All known subjects (from grades + a default list)
+  // Subjects come from the DB subjects list only
   function getAllKnownSubjects() {
-    const fromGrades = [...new Set((DB.get('grades') || []).map(g => g.subject))];
-    const defaults = ['Mathematics','English','Physics','Chemistry','Biology','History','Geography','Computer Science','Arabic','Islamic Studies','Literature','Economics','Art','Physical Education'];
-    return [...new Set([...defaults, ...fromGrades])].sort();
+    return DB.get('subjects') || ['Mathematics','English','Physics','Chemistry','Biology','History','Geography','Computer Science'];
   }
 
   function generateSubjectPicker() {

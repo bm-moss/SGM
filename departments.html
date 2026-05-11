@@ -40,6 +40,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-group="dc" data-tab="tab-depts">🏢 Departments</button>
         <button class="tab-btn" data-group="dc" data-tab="tab-classes">🏫 Classes</button>
+        <button class="tab-btn" data-group="dc" data-tab="tab-subjects">📚 Subjects</button>
         <button class="tab-btn" data-group="dc" data-tab="tab-assignments">📋 Class Assignments</button>
       </div>
 
@@ -71,6 +72,24 @@
               <thead><tr><th>#</th><th>Class Name</th><th>Grade</th><th>Section</th><th>Room</th><th>Homeroom Teacher</th><th>Capacity</th><th>Students</th><th>Actions</th></tr></thead>
               <tbody id="class-table"></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBJECTS -->
+      <div class="tab-content" data-group="dc" id="tab-subjects">
+        <div class="card">
+          <div class="card-header">
+            <h3>Subjects</h3>
+            <div style="display:flex;gap:8px;align-items:center;" id="add-subject-wrap">
+              <input type="text" id="new-subject-input" placeholder="New subject name…"
+                style="padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:200px;"
+                onkeydown="if(event.key==='Enter')addSubject()" />
+              <button class="btn btn-primary btn-sm" onclick="addSubject()">+ Add Subject</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="subjects-grid" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
           </div>
         </div>
       </div>
@@ -622,6 +641,46 @@
   populateAssignFilters();
   renderAssignments();
   if (!canEdit) document.getElementById('add-assign-btn').classList.add('hidden');
+
+  // ── SUBJECTS ──────────────────────────────────────────────
+
+  function getSubjectsList() {
+    return DB.get('subjects') || ['Mathematics','English','Physics','Chemistry','Biology','History','Geography','Computer Science'];
+  }
+
+  function renderSubjects() {
+    const subjects = getSubjectsList();
+    document.getElementById('subjects-grid').innerHTML = subjects.length
+      ? subjects.map(s => `
+          <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);">
+            <span style="font-size:13px;font-weight:600;">${s}</span>
+            ${canEdit ? `<button onclick="deleteSubject('${s}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:14px;line-height:1;padding:0 2px;" title="Delete subject">✕</button>` : ''}
+          </div>`).join('')
+      : '<div style="color:var(--text-light);font-size:13px;">No subjects yet. Add one above.</div>';
+  }
+
+  function addSubject() {
+    const input = document.getElementById('new-subject-input');
+    const name = input.value.trim();
+    if (!name) { toast('Enter a subject name', 'error'); return; }
+    const subjects = getSubjectsList();
+    if (subjects.find(s => s.toLowerCase() === name.toLowerCase())) { toast('Subject already exists', 'error'); return; }
+    subjects.push(name);
+    DB.set('subjects', subjects);
+    input.value = '';
+    renderSubjects();
+    toast('Subject "' + name + '" added', 'success');
+  }
+
+  function deleteSubject(name) {
+    if (!confirm(`Delete subject "${name}"? This won't remove existing grade records.`)) return;
+    DB.set('subjects', getSubjectsList().filter(s => s !== name));
+    renderSubjects();
+    toast('Subject deleted');
+  }
+
+  renderSubjects();
+  if (!canEdit) document.getElementById('add-subject-wrap').style.display = 'none';
 </script>
 </body>
 </html>
