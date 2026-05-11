@@ -40,6 +40,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-group="dc" data-tab="tab-depts">🏢 Departments</button>
         <button class="tab-btn" data-group="dc" data-tab="tab-classes">🏫 Classes</button>
+        <button class="tab-btn" data-group="dc" data-tab="tab-assignments">📋 Class Assignments</button>
       </div>
 
       <!-- DEPARTMENTS -->
@@ -69,6 +70,35 @@
             <table>
               <thead><tr><th>#</th><th>Class Name</th><th>Grade</th><th>Section</th><th>Room</th><th>Homeroom Teacher</th><th>Capacity</th><th>Students</th><th>Actions</th></tr></thead>
               <tbody id="class-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLASS ASSIGNMENTS -->
+      <div class="tab-content" data-group="dc" id="tab-assignments">
+        <div class="card">
+          <div class="card-header">
+            <h3>Class Assignments</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="assign-class-filter" onchange="renderAssignments()" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:13px;">
+                <option value="">All Classes</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="openAssignModal()" id="add-assign-btn">+ Assign Teacher</button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th>Teacher</th>
+                  <th>Subjects Assigned</th>
+                  <th>Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="assign-table"></tbody>
             </table>
           </div>
         </div>
@@ -158,6 +188,43 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('class-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveClass()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Teacher Modal -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 id="assign-modal-title">Assign Teacher to Class</h3>
+      <button class="modal-close" onclick="closeModal('assign-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="assign-edit-id" />
+      <div class="form-group">
+        <label>Class *</label>
+        <select id="assign-class"></select>
+      </div>
+      <div class="form-group">
+        <label>Teacher *</label>
+        <select id="assign-teacher" onchange="onAssignTeacherChange()"></select>
+      </div>
+      <div class="form-group">
+        <label>Subjects to Teach in This Class *</label>
+        <div id="assign-subjects-grid" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);min-height:48px;"></div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">Check the subjects this teacher will teach in the selected class.</div>
+      </div>
+      <div class="form-group">
+        <label>Role in Class</label>
+        <select id="assign-role">
+          <option value="subject">Subject Teacher</option>
+          <option value="homeroom">Homeroom Teacher</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('assign-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">Save Assignment</button>
     </div>
   </div>
 </div>
@@ -367,6 +434,194 @@
   populateTeacherSelects();
   renderDepts();
   renderClasses();
+
+  // ── CLASS ASSIGNMENTS ──────────────────────────────────────
+
+  function getAssignments() { return DB.get('class_assignments') || []; }
+
+  function populateAssignFilters() {
+    const classes = getClasses();
+    const sel = document.getElementById('assign-class-filter');
+    // keep first option
+    while (sel.options.length > 1) sel.remove(1);
+    classes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.name; o.textContent = 'Class ' + c.name;
+      sel.appendChild(o);
+    });
+  }
+
+  function renderAssignments() {
+    const filter = document.getElementById('assign-class-filter').value;
+    const assignments = getAssignments().filter(a => !filter || a.className === filter);
+    const teachers = getTeachers();
+
+    document.getElementById('assign-table').innerHTML = assignments.length
+      ? assignments.map(a => {
+          const t = teachers.find(t => t.id === a.teacherId);
+          return `<tr>
+            <td><span class="badge badge-info">${a.className}</span></td>
+            <td><strong>${t ? t.name : a.teacherId}</strong></td>
+            <td>${(a.subjects || []).map(s => `<span class="badge badge-secondary" style="margin:1px;">${s}</span>`).join(' ')}</td>
+            <td><span class="badge badge-${a.role === 'homeroom' ? 'success' : 'info'}">${a.role === 'homeroom' ? '⭐ Homeroom' : 'Subject'}</span></td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="editAssignment('${a.id}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteAssignment('${a.id}')">🗑️</button>
+            </td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:32px;">No assignments yet. Click "+ Assign Teacher" to start.</td></tr>';
+  }
+
+  function openAssignModal() {
+    document.getElementById('assign-modal-title').textContent = 'Assign Teacher to Class';
+    document.getElementById('assign-edit-id').value = '';
+    document.getElementById('assign-role').value = 'subject';
+
+    // Populate class select
+    const cSel = document.getElementById('assign-class');
+    cSel.innerHTML = '<option value="">— Select Class —</option>';
+    getClasses().forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.name; o.textContent = 'Class ' + c.name;
+      cSel.appendChild(o);
+    });
+
+    // Populate teacher select
+    const tSel = document.getElementById('assign-teacher');
+    tSel.innerHTML = '<option value="">— Select Teacher —</option>';
+    getTeachers().forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id; o.textContent = t.name;
+      tSel.appendChild(o);
+    });
+
+    document.getElementById('assign-subjects-grid').innerHTML = '<span style="color:var(--text-light);font-size:13px;">Select a teacher first</span>';
+    openModal('assign-modal');
+  }
+
+  function onAssignTeacherChange() {
+    const tid = document.getElementById('assign-teacher').value;
+    const grid = document.getElementById('assign-subjects-grid');
+    if (!tid) { grid.innerHTML = '<span style="color:var(--text-light);font-size:13px;">Select a teacher first</span>'; return; }
+
+    const t = getTeachers().find(t => t.id === tid);
+    if (!t) return;
+    const subs = t.subjects && t.subjects.length ? t.subjects : (t.subject ? [t.subject] : []);
+
+    grid.innerHTML = subs.length
+      ? subs.map(s => `
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);cursor:pointer;font-size:13px;font-weight:500;transition:all .12s;" id="aslbl-${s.replace(/\s/g,'_')}">
+            <input type="checkbox" value="${s}" style="accent-color:var(--primary);"
+              onchange="document.getElementById('aslbl-${s.replace(/\s/g,'_')}').style.background=this.checked?'var(--primary-light)':'';document.getElementById('aslbl-${s.replace(/\s/g,'_')}').style.borderColor=this.checked?'var(--primary)':'var(--border)';" />
+            ${s}
+          </label>`).join('')
+      : '<span style="color:var(--text-light);font-size:13px;">This teacher has no subjects assigned. Edit the teacher first.</span>';
+  }
+
+  function editAssignment(id) {
+    const a = getAssignments().find(a => a.id === id);
+    if (!a) return;
+    document.getElementById('assign-modal-title').textContent = 'Edit Assignment';
+    document.getElementById('assign-edit-id').value = a.id;
+
+    const cSel = document.getElementById('assign-class');
+    cSel.innerHTML = '<option value="">— Select Class —</option>';
+    getClasses().forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.name; o.textContent = 'Class ' + c.name;
+      cSel.appendChild(o);
+    });
+    cSel.value = a.className;
+
+    const tSel = document.getElementById('assign-teacher');
+    tSel.innerHTML = '<option value="">— Select Teacher —</option>';
+    getTeachers().forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.id; o.textContent = t.name;
+      tSel.appendChild(o);
+    });
+    tSel.value = a.teacherId;
+
+    onAssignTeacherChange();
+    // Check previously assigned subjects
+    setTimeout(() => {
+      document.querySelectorAll('#assign-subjects-grid input[type=checkbox]').forEach(cb => {
+        if ((a.subjects || []).includes(cb.value)) {
+          cb.checked = true;
+          const lbl = document.getElementById('aslbl-' + cb.value.replace(/\s/g,'_'));
+          if (lbl) { lbl.style.background = 'var(--primary-light)'; lbl.style.borderColor = 'var(--primary)'; }
+        }
+      });
+    }, 50);
+
+    document.getElementById('assign-role').value = a.role || 'subject';
+    openModal('assign-modal');
+  }
+
+  function saveAssignment() {
+    const className  = document.getElementById('assign-class').value;
+    const teacherId  = document.getElementById('assign-teacher').value;
+    const role       = document.getElementById('assign-role').value;
+    const subjects   = [...document.querySelectorAll('#assign-subjects-grid input[type=checkbox]:checked')].map(c => c.value);
+
+    if (!className)       { toast('Select a class', 'error'); return; }
+    if (!teacherId)       { toast('Select a teacher', 'error'); return; }
+    if (!subjects.length) { toast('Select at least one subject', 'error'); return; }
+
+    const assignments = getAssignments();
+    const editId = document.getElementById('assign-edit-id').value;
+    const record = { className, teacherId, subjects, role };
+
+    if (editId) {
+      const idx = assignments.findIndex(a => a.id === editId);
+      assignments[idx] = { ...assignments[idx], ...record };
+      toast('Assignment updated', 'success');
+    } else {
+      // Check for duplicate
+      const dup = assignments.find(a => a.className === className && a.teacherId === teacherId);
+      if (dup) { toast('This teacher is already assigned to this class. Edit the existing assignment.', 'error'); return; }
+      assignments.push({ id: 'asgn_' + Date.now(), ...record });
+      toast('Teacher assigned', 'success');
+    }
+
+    DB.set('class_assignments', assignments);
+
+    // If homeroom, also update the class record
+    if (role === 'homeroom') {
+      const classes = getClasses();
+      const idx = classes.findIndex(c => c.name === className);
+      if (idx !== -1) { classes[idx].classTeacher = teacherId; DB.set('classes', classes); renderClasses(); }
+    }
+
+    // Update teacher's subjects array to include newly assigned subjects
+    const teachers = getTeachers();
+    const tIdx = teachers.findIndex(t => t.id === teacherId);
+    if (tIdx !== -1) {
+      const existing = teachers[tIdx].subjects || (teachers[tIdx].subject ? [teachers[tIdx].subject] : []);
+      const merged = [...new Set([...existing, ...subjects])];
+      teachers[tIdx].subjects = merged;
+      teachers[tIdx].subject = merged[0];
+      DB.set('teachers', teachers);
+    }
+
+    closeModal('assign-modal');
+    renderAssignments();
+    populateAssignFilters();
+  }
+
+  function deleteAssignment(id) {
+    confirmDelete('Remove this teacher assignment?', () => {
+      DB.set('class_assignments', getAssignments().filter(a => a.id !== id));
+      toast('Assignment removed');
+      renderAssignments();
+    });
+  }
+
+  // Init assignments tab
+  populateAssignFilters();
+  renderAssignments();
+  if (!canEdit) document.getElementById('add-assign-btn').classList.add('hidden');
 </script>
 </body>
 </html>

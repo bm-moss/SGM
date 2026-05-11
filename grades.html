@@ -259,21 +259,30 @@
   function canEditSubject(subject) {
     if (Auth.isAdmin()) return true;
     if (isHomeroomTeacher()) return true;
+    // Check class_assignments for this teacher + active class
+    const assignments = DB.get('class_assignments') || [];
+    const myAssignment = assignments.find(a => a.teacherId === user.linkedId && a.className === activeClass);
+    if (myAssignment) return (myAssignment.subjects || []).includes(subject);
+    // Fallback to teacher record subjects
     const tr = getTeacherRecord();
     if (!tr) return false;
-    // Support both subjects array and legacy single subject
-    const subjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
-    return subjects.includes(subject);
+    const subs = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+    return subs.includes(subject);
   }
 
-  // Which subjects can this teacher see/add grades for?
+  // Which subjects can this teacher add grades for?
   function getAccessibleSubjects(allSubjects) {
     if (Auth.isAdmin()) return allSubjects;
     if (isHomeroomTeacher()) return allSubjects;
+    // Check class_assignments
+    const assignments = DB.get('class_assignments') || [];
+    const myAssignment = assignments.find(a => a.teacherId === user.linkedId && a.className === activeClass);
+    if (myAssignment) return allSubjects.filter(s => (myAssignment.subjects || []).includes(s));
+    // Fallback to teacher record
     const tr = getTeacherRecord();
     if (!tr) return [];
-    const subjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
-    return allSubjects.filter(s => subjects.includes(s));
+    const subs = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+    return allSubjects.filter(s => subs.includes(s));
   }
 
   // ── State ──
@@ -878,21 +887,23 @@
     document.getElementById('g-subject').value = '';
     ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('calc-preview').innerHTML = 'Enter scores above';
-    // Subject teachers: restrict to their subjects
+    // Subject teachers: restrict to their assigned subjects for this class
     const tr = getTeacherRecord();
     if (tr && !isHomeroomTeacher()) {
-      const teacherSubjects = tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []);
+      const assignments = DB.get('class_assignments') || [];
+      const myAssignment = assignments.find(a => a.teacherId === user.linkedId && a.className === activeClass);
+      const teacherSubjects = myAssignment
+        ? (myAssignment.subjects || [])
+        : (tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []));
+
       if (teacherSubjects.length === 1) {
-        // Single subject — pre-fill and lock
         document.getElementById('g-subject').value = teacherSubjects[0];
         document.getElementById('g-subject').readOnly = true;
         document.getElementById('g-subject').style.background = '#f8fafc';
       } else if (teacherSubjects.length > 1) {
-        // Multiple subjects — restrict datalist to only their subjects
         document.getElementById('g-subject').value = '';
         document.getElementById('g-subject').readOnly = false;
         document.getElementById('g-subject').style.background = '';
-        // Update datalist to only show their subjects
         const dl = document.getElementById('subject-options');
         dl.innerHTML = teacherSubjects.map(s => `<option value="${s}">`).join('');
       }
