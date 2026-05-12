@@ -94,24 +94,13 @@
           <!-- Exam Weights (admin/teacher only) -->
           <div id="weights-panel" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-              <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">⚖️ Exam Weights (must total 100)</span>
-              <span id="weights-total-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f1f5f9;color:var(--text-muted);">Total: 0</span>
+              <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">⚖️ Assessments</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span id="weights-total-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f1f5f9;color:var(--text-muted);">Total: 0</span>
+                <button class="btn btn-outline btn-sm" onclick="openAssessmentModal()">⚙️ Edit Assessments</button>
+              </div>
             </div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
-                <label>Midterm max</label>
-                <input type="number" id="w-midterm" min="0" max="100" value="30" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
-              </div>
-              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
-                <label>Final Exam max</label>
-                <input type="number" id="w-final" min="0" max="100" value="50" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
-              </div>
-              <div class="form-group" style="margin:0;flex:1;min-width:120px;">
-                <label>Assignment max</label>
-                <input type="number" id="w-assign" min="0" max="100" value="20" oninput="updateWeightsTotal()" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="saveWeights()" style="align-self:flex-end;margin-bottom:1px;">Save Weights</button>
-            </div>
+            <div id="assessment-summary" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
           </div>
         </div>
       </div>
@@ -185,6 +174,28 @@
   </div>
 </div>
 
+<!-- Assessment Setup Modal (admin/teacher) -->
+<div class="modal-overlay" id="assessment-modal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3>⚖️ Assessment Setup</h3>
+      <button class="modal-close" onclick="closeModal('assessment-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px;">Define assessment columns for this class & semester. All marks must total exactly 100.</div>
+      <div id="assessment-rows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <button class="btn btn-outline btn-sm" onclick="addAssessmentRow()">+ Add Assessment</button>
+        <span id="assessment-total-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:#f1f5f9;color:var(--text-muted);">Total: 0 / 100</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('assessment-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssessments()">Save Assessments</button>
+    </div>
+  </div>
+</div>
+
 <!-- All Results Modal -->
 <div class="modal-overlay" id="all-results-modal">
   <div class="modal" style="max-width:900px;max-height:92vh;">
@@ -219,23 +230,13 @@
             <option value="">— Select Subject —</option>
           </select>
         </div>
-        <div class="form-group">
-          <label id="lbl-midterm">Midterm <span style="font-weight:400;color:var(--text-light);">out of 30 — optional</span></label>
-          <input type="number" id="g-midterm" min="0" max="30" placeholder="0 – 30" oninput="calcPreview()" />
-        </div>
-        <div class="form-group">
-          <label id="lbl-final">Final Exam <span style="font-weight:400;color:var(--text-light);">out of 50 — optional</span></label>
-          <input type="number" id="g-final" min="0" max="50" placeholder="0 – 50" oninput="calcPreview()" />
-        </div>
-        <div class="form-group">
-          <label id="lbl-assign">Assignment <span style="font-weight:400;color:var(--text-light);">out of 20 — optional</span></label>
-          <input type="number" id="g-assign" min="0" max="20" placeholder="0 – 20" oninput="calcPreview()" />
-        </div>
-        <div class="form-group">
-          <label>Total Score /100</label>
-          <div id="calc-preview" style="padding:9px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;font-weight:700;color:var(--text-muted);">
-            Enter scores above
-          </div>
+      </div>
+      <!-- Dynamic assessment fields -->
+      <div id="g-assessment-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;"></div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Total Score /100</label>
+        <div id="calc-preview" style="padding:9px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;font-weight:700;color:var(--text-muted);">
+          Enter scores above
         </div>
       </div>
     </div>
@@ -306,58 +307,117 @@
   let activeClass = '';
   let activeTerm  = '';
 
-  // ── Weights helpers ──
-  function getWeightsKey() { return 'weights_' + activeClass + '_' + activeTerm; }
+  // ── Assessment helpers (replaces old weights) ──
+  function getAssessmentKey() { return 'assessments_' + activeClass + '_' + activeTerm; }
 
-  function getWeights() {
-    const stored = DB.get(getWeightsKey());
-    return stored || { midterm: 30, final: 50, assignment: 20 };
-  }
-
-  function updateWeightsTotal() {
-    const m = parseInt(document.getElementById('w-midterm').value) || 0;
-    const f = parseInt(document.getElementById('w-final').value)   || 0;
-    const a = parseInt(document.getElementById('w-assign').value)  || 0;
-    const total = m + f + a;
-    const badge = document.getElementById('weights-total-badge');
-    badge.textContent = 'Total: ' + total;
-    badge.style.background = total === 100 ? '#dcfce7' : '#fee2e2';
-    badge.style.color       = total === 100 ? '#15803d' : '#b91c1c';
-  }
-
-  function saveWeights() {
-    const m = parseInt(document.getElementById('w-midterm').value) || 0;
-    const f = parseInt(document.getElementById('w-final').value)   || 0;
-    const a = parseInt(document.getElementById('w-assign').value)  || 0;
-    if (m + f + a !== 100) { toast('Weights must total exactly 100', 'error'); return; }
-    DB.set(getWeightsKey(), { midterm: m, final: f, assignment: a });
-    toast('Exam weights saved', 'success');
-    renderGrades();
-    renderRankings();
+  function getAssessments() {
+    const stored = DB.get(getAssessmentKey());
+    if (stored && stored.length) return stored;
+    // Default assessments
+    return [
+      { name: 'Midterm', max: 30 },
+      { name: 'Final Exam', max: 50 },
+      { name: 'Assignment', max: 20 }
+    ];
   }
 
   function loadWeightsPanel() {
     if (!canEdit) return;
     document.getElementById('weights-panel').style.display = '';
-    const w = getWeights();
-    document.getElementById('w-midterm').value = w.midterm;
-    document.getElementById('w-final').value   = w.final;
-    document.getElementById('w-assign').value  = w.assignment;
-    updateWeightsTotal();
+    renderAssessmentSummary();
   }
 
-  function updateModalLabels() {
-    const w = getWeights();
-    document.getElementById('lbl-midterm').innerHTML = `Midterm <span style="font-weight:400;color:var(--text-light);">out of ${w.midterm} — optional</span>`;
-    document.getElementById('lbl-final').innerHTML   = `Final Exam <span style="font-weight:400;color:var(--text-light);">out of ${w.final} — optional</span>`;
-    document.getElementById('lbl-assign').innerHTML  = `Assignment <span style="font-weight:400;color:var(--text-light);">out of ${w.assignment} — optional</span>`;
-    document.getElementById('g-midterm').max = w.midterm;
-    document.getElementById('g-midterm').placeholder = '0 – ' + w.midterm;
-    document.getElementById('g-final').max   = w.final;
-    document.getElementById('g-final').placeholder   = '0 – ' + w.final;
-    document.getElementById('g-assign').max  = w.assignment;
-    document.getElementById('g-assign').placeholder  = '0 – ' + w.assignment;
+  function renderAssessmentSummary() {
+    const assessments = getAssessments();
+    const total = assessments.reduce((s, a) => s + a.max, 0);
+    const badge = document.getElementById('weights-total-badge');
+    badge.textContent = 'Total: ' + total + ' / 100';
+    badge.style.background = total === 100 ? '#dcfce7' : '#fef3c7';
+    badge.style.color = total === 100 ? '#15803d' : '#92400e';
+    document.getElementById('assessment-summary').innerHTML = assessments.map(a =>
+      `<span style="padding:4px 10px;background:var(--primary-light);color:var(--primary);border-radius:99px;font-size:12px;font-weight:600;">${a.name} /${a.max}</span>`
+    ).join('');
   }
+
+  // ── Assessment Modal ──
+  function openAssessmentModal() {
+    const assessments = getAssessments();
+    renderAssessmentRows(assessments);
+    openModal('assessment-modal');
+  }
+
+  function renderAssessmentRows(assessments) {
+    document.getElementById('assessment-rows').innerHTML = assessments.map((a, i) => `
+      <div style="display:flex;gap:8px;align-items:center;" id="arow-${i}">
+        <input type="text" value="${a.name}" placeholder="Assessment name" id="aname-${i}"
+          style="flex:2;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;"
+          oninput="updateAssessmentTotal()" />
+        <span style="font-size:13px;color:var(--text-muted);">/</span>
+        <input type="number" value="${a.max}" min="1" max="100" id="amax-${i}"
+          style="width:70px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;"
+          oninput="updateAssessmentTotal()" />
+        <button onclick="removeAssessmentRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;padding:0 4px;">✕</button>
+      </div>`).join('');
+    updateAssessmentTotal();
+  }
+
+  function addAssessmentRow() {
+    const count = document.getElementById('assessment-rows').children.length;
+    const div = document.createElement('div');
+    div.id = 'arow-' + count;
+    div.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    div.innerHTML = `
+      <input type="text" placeholder="Assessment name" id="aname-${count}"
+        style="flex:2;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;"
+        oninput="updateAssessmentTotal()" />
+      <span style="font-size:13px;color:var(--text-muted);">/</span>
+      <input type="number" value="10" min="1" max="100" id="amax-${count}"
+        style="width:70px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;"
+        oninput="updateAssessmentTotal()" />
+      <button onclick="removeAssessmentRow(${count})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;padding:0 4px;">✕</button>`;
+    document.getElementById('assessment-rows').appendChild(div);
+    updateAssessmentTotal();
+  }
+
+  function removeAssessmentRow(i) {
+    const row = document.getElementById('arow-' + i);
+    if (row) row.remove();
+    updateAssessmentTotal();
+  }
+
+  function updateAssessmentTotal() {
+    let total = 0;
+    document.querySelectorAll('#assessment-rows [id^="amax-"]').forEach(el => {
+      total += parseInt(el.value) || 0;
+    });
+    const badge = document.getElementById('assessment-total-badge');
+    badge.textContent = 'Total: ' + total + ' / 100';
+    badge.style.background = total === 100 ? '#dcfce7' : total > 100 ? '#fee2e2' : '#fef3c7';
+    badge.style.color = total === 100 ? '#15803d' : total > 100 ? '#b91c1c' : '#92400e';
+  }
+
+  function saveAssessments() {
+    const rows = document.querySelectorAll('#assessment-rows [id^="aname-"]');
+    const assessments = [];
+    let total = 0;
+    rows.forEach((nameEl, i) => {
+      const name = nameEl.value.trim();
+      const max = parseInt(document.getElementById('amax-' + i)?.value) || 0;
+      if (name && max > 0) { assessments.push({ name, max }); total += max; }
+    });
+    if (!assessments.length) { toast('Add at least one assessment', 'error'); return; }
+    if (total !== 100) { toast('Total must equal exactly 100 (currently ' + total + ')', 'error'); return; }
+    DB.set(getAssessmentKey(), assessments);
+    toast('Assessments saved', 'success');
+    closeModal('assessment-modal');
+    renderAssessmentSummary();
+    renderGrades();
+    renderRankings();
+  }
+
+  // Legacy compat — keep updateWeightsTotal as no-op
+  function updateWeightsTotal() {}
+  function updateModalLabels() {}
 
   function getGrades()   { return DB.get('grades')   || []; }
   function getStudents() { return DB.get('students') || []; }
@@ -892,68 +952,52 @@
 
   // ── GRADE MODAL ──
   function calcPreview() {
-    const w = getWeights();
-    const mEl = document.getElementById('g-midterm');
-    const fEl = document.getElementById('g-final');
-    const aEl = document.getElementById('g-assign');
-    const hasAny = mEl.value !== '' || fEl.value !== '' || aEl.value !== '';
+    const assessments = getAssessments();
+    let total = 0; let hasAny = false;
+    assessments.forEach((a, i) => {
+      const el = document.getElementById('g-assess-' + i);
+      if (el && el.value !== '') { total += parseFloat(el.value) || 0; hasAny = true; }
+    });
     if (!hasAny) { document.getElementById('calc-preview').innerHTML = 'Enter scores above'; return; }
-
-    const m = parseFloat(mEl.value) || 0;
-    const f = parseFloat(fEl.value) || 0;
-    const a = parseFloat(aEl.value) || 0;
-
-    mEl.style.borderColor = m > w.midterm    ? 'var(--danger)' : '';
-    fEl.style.borderColor = f > w.final      ? 'var(--danger)' : '';
-    aEl.style.borderColor = a > w.assignment ? 'var(--danger)' : '';
-
-    const total = m + f + a;
     const color = total >= 80 ? '#15803d' : total >= 60 ? '#b45309' : '#b91c1c';
     document.getElementById('calc-preview').innerHTML =
-      `<span style="color:${color};font-size:16px;font-weight:800;">${total}</span>
-       <span style="color:var(--text-muted);font-size:13px;"> / 100</span>
-       &nbsp;&nbsp;
-       <span style="font-size:12px;color:var(--text-muted);">(${m}/${w.midterm} + ${f}/${w.final} + ${a}/${w.assignment})</span>`;
+      `<span style="color:${color};font-size:16px;font-weight:800;">${Math.round(total*10)/10}</span><span style="color:var(--text-muted);font-size:13px;"> / 100</span>`;
+  }
+
+  function buildAssessmentFields(existingData) {
+    const assessments = getAssessments();
+    const container = document.getElementById('g-assessment-fields');
+    container.innerHTML = assessments.map((a, i) => `
+      <div class="form-group" style="margin:0;">
+        <label>${a.name} <span style="font-weight:400;color:var(--text-light);">/${a.max} — optional</span></label>
+        <input type="number" id="g-assess-${i}" min="0" max="${a.max}" placeholder="0 – ${a.max}"
+          value="${existingData && existingData[a.name] !== undefined ? existingData[a.name] : ''}"
+          oninput="calcPreview()"
+          style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:13px;width:100%;" />
+      </div>`).join('');
   }
 
   function openAddGrade() {
     document.getElementById('grade-modal-title').textContent = 'Add Grade';
     document.getElementById('g-edit-id').value = '';
-    ['g-midterm','g-final','g-assign'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('calc-preview').innerHTML = 'Enter scores above';
 
-    // Populate subject select from DB
     const subjects = DB.get('subjects') || [];
     const sel = document.getElementById('g-subject');
     sel.innerHTML = '<option value="">— Select Subject —</option>';
-    subjects.forEach(s => {
-      const o = document.createElement('option');
-      o.value = s; o.textContent = s;
-      sel.appendChild(o);
-    });
+    subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o); });
     sel.disabled = false;
 
-    // Subject teachers: restrict to their assigned subjects for this class
     const tr = getTeacherRecord();
     if (tr && !isHomeroomTeacher()) {
       const assignments = DB.get('class_assignments') || [];
       const myAssignment = assignments.find(a => a.teacherId === user.linkedId && a.className === activeClass);
-      const teacherSubjects = myAssignment
-        ? (myAssignment.subjects || [])
-        : (tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []));
-
-      // Filter select to only teacher's subjects
-      [...sel.options].forEach(o => {
-        if (o.value && !teacherSubjects.includes(o.value)) o.remove();
-      });
-
-      if (teacherSubjects.length === 1) {
-        sel.value = teacherSubjects[0];
-        sel.disabled = true;
-      }
+      const teacherSubjects = myAssignment ? (myAssignment.subjects || []) : (tr.subjects && tr.subjects.length ? tr.subjects : (tr.subject ? [tr.subject] : []));
+      [...sel.options].forEach(o => { if (o.value && !teacherSubjects.includes(o.value)) o.remove(); });
+      if (teacherSubjects.length === 1) { sel.value = teacherSubjects[0]; sel.disabled = true; }
     }
 
-    updateModalLabels();
+    buildAssessmentFields();
     openModal('grade-modal');
   }
 
@@ -987,9 +1031,8 @@
     sel.value = g.subject;
     sel.disabled = false;
 
-    document.getElementById('g-midterm').value = g.midterm !== undefined ? g.midterm : '';
-    document.getElementById('g-final').value   = g.final   !== undefined ? g.final   : '';
-    document.getElementById('g-assign').value  = g.assignment !== undefined ? g.assignment : '';
+    // Build assessment fields with existing data
+    buildAssessmentFields(g.assessments || {});
     calcPreview();
     openModal('grade-modal');
   }
@@ -998,28 +1041,38 @@
     const sid = document.getElementById('g-student').value;
     if (!sid) { toast('Select a student', 'error'); return; }
     const subject = document.getElementById('g-subject').value.trim();
-    if (!subject) { toast('Enter a subject', 'error'); return; }
+    if (!subject) { toast('Select a subject', 'error'); return; }
 
-    const midterm    = document.getElementById('g-midterm').value !== '' ? parseFloat(document.getElementById('g-midterm').value) : 0;
-    const finalEx    = document.getElementById('g-final').value   !== '' ? parseFloat(document.getElementById('g-final').value)   : 0;
-    const assignment = document.getElementById('g-assign').value  !== '' ? parseFloat(document.getElementById('g-assign').value)  : 0;
-
-    const w = getWeights();
-    if (midterm > w.midterm)       { toast(`Midterm cannot exceed ${w.midterm}`, 'error'); return; }
-    if (finalEx > w.final)         { toast(`Final exam cannot exceed ${w.final}`, 'error'); return; }
-    if (assignment > w.assignment) { toast(`Assignment cannot exceed ${w.assignment}`, 'error'); return; }
+    // Collect assessment scores
+    const assessments = getAssessments();
+    const assessmentData = {};
+    let score = 0;
+    let valid = true;
+    assessments.forEach((a, i) => {
+      const el = document.getElementById('g-assess-' + i);
+      const val = el && el.value !== '' ? parseFloat(el.value) : 0;
+      if (val > a.max) { toast(`${a.name} cannot exceed ${a.max}`, 'error'); valid = false; return; }
+      assessmentData[a.name] = val;
+      score += val;
+    });
+    if (!valid) return;
+    score = Math.round(score * 10) / 10;
 
     const student = getStudents().find(s => s.id === sid);
-    const score = GradeCalc.calcScore(midterm, finalEx, assignment);
     const grade = GradeCalc.getGrade(score);
     const grades = getGrades();
     const editId = document.getElementById('g-edit-id').value;
 
+    // Keep legacy fields for backward compat
     const record = {
       studentId: sid, studentName: student.name, class: activeClass,
       subject, term: activeTerm,
       year: new Date().getFullYear().toString(),
-      midterm, final: finalEx, assignment, score, grade
+      assessments: assessmentData,
+      midterm: assessmentData[assessments[0]?.name] || 0,
+      final: assessmentData[assessments[1]?.name] || 0,
+      assignment: assessmentData[assessments[2]?.name] || 0,
+      score, grade
     };
 
     if (editId) {
@@ -1027,9 +1080,8 @@
       grades[idx] = { ...grades[idx], ...record };
       toast('Grade updated', 'success');
     } else {
-      // Check for duplicate (same student + subject + term)
       const dup = grades.find(g => g.studentId === sid && g.subject === subject && g.term === activeTerm);
-      if (dup) { toast('Grade already exists for this student/subject/term. Edit it instead.', 'error'); return; }
+      if (dup) { toast('Grade already exists. Edit it instead.', 'error'); return; }
       grades.push({ id: 'g_' + Date.now(), ...record });
       toast('Grade added', 'success');
     }
