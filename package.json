@@ -1,9 +1,14 @@
 {
   "name": "edumanage-pro",
-  "version": "1.0.0",
-  "description": "School Management System",
+  "version": "2.0.0",
+  "description": "School Management System with persistent backend",
+  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18"

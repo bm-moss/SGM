@@ -2,5 +2,9 @@ services:
   - type: web
     name: edumanage-pro
     env: node
-    buildCommand: echo "no build needed"
+    buildCommand: npm install
     startCommand: node server.js
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
